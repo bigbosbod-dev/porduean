@@ -5,6 +5,18 @@ body {
 :root { color-scheme: light; }
 .dark { color-scheme: dark; }
 
+/* สีแท่งกราฟ: เขียว/ส้ม ผ่านการตรวจว่าคนตาบอดสีแยกออก (ทั้งโหมดสว่างและมืด) */
+:root { --bar-ok: #059669; --bar-over: #ea580c; --grid: #e2e8f0; --axis: #94a3b8; }
+.dark { --grid: #1e293b; --axis: #64748b; }
+
+/* การ์ด "วันนี้ใช้ได้อีก" เปลี่ยนสีตามสถานะ */
+#today-card[data-state="ok"] { background: linear-gradient(135deg, #10b981, #0d9488); }
+#today-card[data-state="near"] { background: linear-gradient(135deg, #f59e0b, #ea580c); }
+#today-card[data-state="over"] { background: linear-gradient(135deg, #f43f5e, #ea580c); }
+.dark #today-card[data-state="ok"] { background: linear-gradient(135deg, #059669, #115e59); }
+.dark #today-card[data-state="near"] { background: linear-gradient(135deg, #b45309, #9a3412); }
+.dark #today-card[data-state="over"] { background: linear-gradient(135deg, #be123c, #9a3412); }
+
 .safe-top { padding-top: env(safe-area-inset-top); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 

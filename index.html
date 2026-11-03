@@ -92,7 +92,7 @@
         <p class="muted text-xs mt-3">ค่าหอ ค่าโทรศัพท์ และเงินที่อยากเก็บ ตั้งเพิ่มได้ภายหลังในแท็บ "ตั้งค่า"</p>
       </div>
 
-      <div id="today-card" class="hidden rounded-3xl p-5 text-white shadow-lg bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-800">
+      <div id="today-card" class="hidden rounded-3xl p-5 text-white shadow-lg transition-colors" data-state="ok">
         <div class="text-sm opacity-90" id="today-label">วันนี้ใช้ได้อีก</div>
         <div class="text-5xl font-bold tracking-tight mt-1" id="today-amount">฿0</div>
         <div class="text-sm opacity-90 mt-2" id="today-sub"></div>
@@ -167,6 +167,20 @@
       </div>
 
       <div class="card p-4">
+        <div class="flex items-baseline justify-between gap-2">
+          <h3 class="font-semibold heading">รายจ่ายรายวัน</h3>
+          <span class="text-xs muted" id="chart-avg"></span>
+        </div>
+        <div id="chart-info" class="text-sm heading mt-1 min-h-[1.25rem]" aria-live="polite"></div>
+        <div id="chart" class="mt-2 select-none"></div>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs muted" id="chart-legend">
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm" style="background:var(--bar-ok)"></span>ไม่เกินงบต่อวัน</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm" style="background:var(--bar-over)"></span>เกินงบต่อวัน</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-4 border-t-2 border-dashed border-slate-400"></span>งบต่อวัน</span>
+        </div>
+      </div>
+
+      <div class="card p-4">
         <h3 class="font-semibold heading mb-3">ใช้ไปกับอะไรบ้าง</h3>
         <div id="hist-cats" class="space-y-3"></div>
       </div>
@@ -195,6 +209,16 @@
           <label class="label" for="set-saving">เงินที่อยากเก็บต่อเดือน (บาท)</label>
           <input id="set-saving" type="number" inputmode="decimal" min="0" class="input" placeholder="0" onchange="saveSettingsForm()" />
           <p class="text-xs muted mt-1">ส่วนนี้จะถูกกันไว้ ไม่นับเป็นเงินที่ใช้ได้</p>
+        </div>
+        <div>
+          <label class="label" for="set-warn">เตือนเมื่อใช้ใกล้หมดงบของวัน</label>
+          <select id="set-warn" class="input" onchange="saveSettingsForm()">
+            <option value="0">ไม่ต้องเตือน</option>
+            <option value="70">เมื่อใช้ถึง 70% ของงบวันนี้</option>
+            <option value="80">เมื่อใช้ถึง 80% ของงบวันนี้</option>
+            <option value="90">เมื่อใช้ถึง 90% ของงบวันนี้</option>
+          </select>
+          <p class="text-xs muted mt-1">ตอนจดรายจ่าย แอปจะบอกล่วงหน้าว่าจดแล้วจะเหลือเท่าไหร่ และเตือนเมื่อใกล้หมดหรือเกินงบ</p>
         </div>
       </div>
 
@@ -266,6 +290,7 @@
 
       <label class="label" for="sheet-amount">จำนวนเงิน (บาท)</label>
       <input id="sheet-amount" type="number" inputmode="decimal" min="0" step="any" class="input !text-2xl font-semibold" placeholder="0" />
+      <div id="sheet-preview" class="hidden mt-2 text-sm rounded-xl px-3 py-2"></div>
 
       <div id="sheet-cats-wrap" class="mt-4">
         <div class="label">หมวด</div>

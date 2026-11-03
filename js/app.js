@@ -55,6 +55,8 @@ function sanitize(d) {
       income: num(s.income),
       payday,
       saving: num(s.saving) || 0,
+      // เตือนเมื่อใช้ถึงกี่ % ของงบวันนี้ (0 = ไม่เตือน)
+      warnPct: [0, 70, 80, 90].includes(s.warnPct) ? s.warnPct : 80,
       fixed: (Array.isArray(s.fixed) ? s.fixed : [])
         .filter((f) => f && typeof f.name === 'string' && num(f.amount) !== null)
         .map((f) => ({ id: typeof f.id === 'string' ? f.id : uid(), name: f.name.slice(0, 40), amount: num(f.amount) })),
@@ -140,6 +142,14 @@ function todayNumbers() {
   };
 }
 
+// สถานะของวันนี้: ok = ปกติ, near = ใช้ถึงเกณฑ์เตือนแล้ว, over = เกินงบวันนี้
+function todayState(spent, daily) {
+  if (spent > daily) return 'over';
+  const w = data.settings.warnPct;
+  if (w && spent > 0 && (daily <= 0 || spent >= (daily * w) / 100)) return 'near';
+  return 'ok';
+}
+
 // ---------- Render ----------
 function txnRow(t, { showDate = false } = {}) {
   const c = catOf(t);
@@ -170,13 +180,10 @@ function renderHome() {
   const n = todayNumbers();
   $('header-cycle').textContent = `รอบ ${fmtDate(n.c.start)} – ${fmtDate(n.c.end)}`;
 
-  const card = $('today-card');
   const over = n.left < 0;
-  card.classList.toggle('from-emerald-500', !over);
-  card.classList.toggle('to-teal-600', !over);
-  card.classList.toggle('from-rose-500', over);
-  card.classList.toggle('to-orange-500', over);
-  $('today-label').textContent = over ? 'วันนี้ใช้เกินงบไปแล้ว' : 'วันนี้ใช้ได้อีก';
+  const state = todayState(n.spentToday, n.daily);
+  $('today-card').dataset.state = state;
+  $('today-label').textContent = over ? 'วันนี้ใช้เกินงบไปแล้ว' : state === 'near' ? '⚠️ ใกล้หมดงบวันนี้แล้ว เหลืออีก' : 'วันนี้ใช้ได้อีก';
   $('today-amount').textContent = fmtMoney(Math.abs(n.left));
 
   let sub;
@@ -237,6 +244,8 @@ function renderHistory() {
   $('hist-left').textContent = fmtMoney(Math.abs(left));
   $('hist-left').className = `font-semibold mt-0.5 ${left < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`;
 
+  renderChart(c, s);
+
   const byCat = CATS.map((cat) => ({ cat, total: sum(s.expenses.filter((t) => t.cat === cat.id)) }))
     .filter((x) => x.total > 0)
     .sort((a, b) => b.total - a.total);
@@ -272,6 +281,113 @@ function renderHistory() {
     : '<p class="text-sm muted px-3 py-4 text-center">ไม่มีรายการ</p>';
 }
 
+// ---------- กราฟรายจ่ายรายวัน ----------
+// แท่งละวัน เทียบกับเส้น "งบต่อวัน" (งบทั้งรอบ ÷ จำนวนวันในรอบ) วันที่เกินเส้นเป็นสีส้ม
+// แตะ/ชี้ที่แท่งเพื่อดูยอดของวันนั้น
+let chartDays = [];
+let chartPlan = 0;
+
+function renderChart(c, s) {
+  const today = ymd(todayDate());
+  const byDate = {};
+  s.expenses.forEach((t) => { byDate[t.date] = (byDate[t.date] || 0) + t.amount; });
+  chartPlan = Math.max(0, s.budget / c.days);
+  chartDays = Array.from({ length: c.days }, (_, i) => {
+    const d = addDays(c.start, i);
+    const key = ymd(d);
+    return { d, key, total: byDate[key] || 0, future: key > today };
+  });
+
+  const W = 340; const H = 150; const top = 14; const bottom = 20; const left = 2; const right = 2;
+  const plotH = H - top - bottom;
+  const maxV = Math.max(chartPlan, ...chartDays.map((x) => x.total), 1) * 1.08;
+  const y = (v) => top + plotH - (v / maxV) * plotH;
+  const slot = (W - left - right) / c.days;
+  const barW = Math.max(2, slot - 2); // ช่องว่าง 2px ระหว่างแท่ง
+  const r = Math.min(4, barW / 2);
+
+  const bars = chartDays.map((x, i) => {
+    if (!x.total) return '';
+    const bx = left + i * slot + (slot - barW) / 2;
+    const by = y(x.total);
+    const h = top + plotH - by;
+    const rr = Math.min(r, h);
+    const color = chartPlan > 0 && x.total > chartPlan ? 'var(--bar-over)' : 'var(--bar-ok)';
+    // มุมโค้งเฉพาะด้านบน ด้านล่างแนบเส้นฐาน
+    return `<path d="M${bx},${top + plotH} V${by + rr} Q${bx},${by} ${bx + rr},${by} H${bx + barW - rr} Q${bx + barW},${by} ${bx + barW},${by + rr} V${top + plotH} Z" fill="${color}" />`;
+  }).join('');
+
+  // ป้ายวันที่ใต้แกน: วันแรก ทุก 7 วัน และวันสุดท้าย
+  const labels = chartDays.map((x, i) => {
+    if (!(i === 0 || i === c.days - 1 || (i % 7 === 0 && c.days - 1 - i >= 3))) return '';
+    const cx = left + i * slot + slot / 2;
+    const anchor = i === 0 ? 'start' : i === c.days - 1 ? 'end' : 'middle';
+    const tx = i === 0 ? left : i === c.days - 1 ? W - right : cx;
+    return `<text x="${tx}" y="${H - 5}" text-anchor="${anchor}" class="fill-slate-500 dark:fill-slate-400" font-size="10">${x.d.getDate()}</text>`;
+  }).join('');
+
+  const todayIdx = chartDays.findIndex((x) => x.key === today);
+  const todayMark = todayIdx >= 0
+    ? `<circle cx="${left + todayIdx * slot + slot / 2}" cy="${top + plotH + 4}" r="2" class="fill-slate-500 dark:fill-slate-400" />`
+    : '';
+
+  const planY = y(chartPlan);
+  const planLine = chartPlan > 0
+    ? `<line x1="${left}" x2="${W - right}" y1="${planY}" y2="${planY}" stroke="var(--axis)" stroke-width="1.5" stroke-dasharray="4 3" />
+       <text x="${W - right}" y="${planY - 4}" text-anchor="end" font-size="10" class="fill-slate-500 dark:fill-slate-400">งบต่อวัน ${fmtMoney(Math.floor(chartPlan))}</text>`
+    : '';
+
+  // พื้นที่แตะใหญ่กว่าแท่ง (เต็มความสูง)
+  const hits = chartDays.map((x, i) => `<rect x="${left + i * slot}" y="0" width="${slot}" height="${H}" fill="transparent" data-i="${i}" />`).join('');
+  const hl = `<rect id="chart-hl" x="0" y="${top}" width="${slot}" height="${plotH}" rx="3" class="fill-slate-400/15" visibility="hidden" />`;
+
+  $('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="w-full h-auto overflow-visible" role="img" aria-label="กราฟรายจ่ายรายวันของรอบนี้">
+    ${hl}
+    <line x1="${left}" x2="${W - right}" y1="${top + plotH}" y2="${top + plotH}" stroke="var(--grid)" stroke-width="1" />
+    ${bars}${planLine}${labels}${todayMark}
+    <g id="chart-hits">${hits}</g>
+  </svg>`;
+
+  const past = chartDays.filter((x) => !x.future);
+  const spentDays = past.length || 1;
+  const overDays = past.filter((x) => chartPlan > 0 && x.total > chartPlan).length;
+  $('chart-avg').textContent = s.spent ? `เฉลี่ย ${fmtMoney(Math.round(s.spent / spentDays))}/วัน` : '';
+  chartDefaultInfo = s.spent
+    ? (overDays ? `เกินงบต่อวัน ${overDays} วัน จาก ${past.length} วัน` : `ยังไม่มีวันไหนเกินงบต่อวัน 👍`)
+    : 'ยังไม่มีรายจ่ายในรอบนี้';
+  showChartInfo(-1);
+
+  const g = $('chart-hits');
+  const pick = (ev) => {
+    const el = ev.target.closest('[data-i]');
+    if (el) showChartInfo(Number(el.dataset.i));
+  };
+  g.addEventListener('pointerenter', pick, true);
+  g.addEventListener('pointerdown', pick);
+  g.addEventListener('pointermove', pick);
+  $('chart').querySelector('svg').addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') showChartInfo(-1); });
+}
+
+let chartDefaultInfo = '';
+function showChartInfo(i) {
+  const hl = $('chart-hl');
+  const x = chartDays[i];
+  if (!x) {
+    if (hl) hl.setAttribute('visibility', 'hidden');
+    $('chart-info').innerHTML = `<span class="muted">${escapeHtml(chartDefaultInfo)}</span>`;
+    return;
+  }
+  const slot = Number($('chart-hits').firstElementChild.getAttribute('width'));
+  hl.setAttribute('x', i * slot + 2);
+  hl.setAttribute('visibility', 'visible');
+  const date = fmtDate(x.d, { weekday: 'short', day: 'numeric', month: 'short' });
+  let note = '';
+  if (x.future) note = '<span class="muted">ยังไม่ถึงวันนี้</span>';
+  else if (chartPlan > 0 && x.total > chartPlan) note = `<span class="text-orange-600 dark:text-orange-400">เกินงบต่อวัน ${fmtMoney(Math.ceil(x.total - chartPlan))}</span>`;
+  else if (x.total) note = '<span class="muted">ไม่เกินงบต่อวัน</span>';
+  $('chart-info').innerHTML = `${date} · <b>${x.total ? `ใช้ ${fmtMoney(x.total)}` : 'ไม่ได้ใช้เงิน'}</b> ${note}`;
+}
+
 function paydayOptions(sel) {
   sel.innerHTML = Array.from({ length: 31 }, (_, i) => `<option value="${i + 1}">${i + 1}${i === 30 ? ' (หรือวันสุดท้ายของเดือน)' : ''}</option>`).join('');
 }
@@ -281,6 +397,7 @@ function renderSettings() {
   $('set-income').value = st.income ?? '';
   $('set-payday').value = String(st.payday);
   $('set-saving').value = st.saving || '';
+  $('set-warn').value = String(st.warnPct);
   $('fixed-total').textContent = st.fixed.length ? `รวม ${fmtMoney(fixedTotal())}/เดือน` : '';
   $('fixed-list').innerHTML = st.fixed.length
     ? st.fixed.map((f) => `<div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl pl-3 pr-1 py-1">
@@ -343,6 +460,7 @@ function saveSettingsForm() {
   data.settings.income = income;
   data.settings.payday = Number($('set-payday').value) || 1;
   data.settings.saving = saving;
+  data.settings.warnPct = Number($('set-warn').value) || 0;
   save();
   renderAll();
   toast('บันทึกแล้ว', 'success', 1200);
@@ -382,6 +500,7 @@ function setSheetType(type) {
   document.querySelectorAll('.seg').forEach((b) => b.classList.toggle('active', b.dataset.type === type));
   $('sheet-cats-wrap').classList.toggle('hidden', type === 'income');
   $('sheet-note').placeholder = type === 'income' ? 'เช่น ค่าจ้างพาร์ทไทม์' : 'เช่น ข้าวมันไก่';
+  updateSheetPreview();
 }
 
 function openSheet(id) {
@@ -395,6 +514,7 @@ function openSheet(id) {
   $('sheet-note').value = t ? t.note : '';
   $('sheet-date').value = t ? t.date : ymd(todayDate());
   $('sheet-delete').classList.toggle('hidden', !t);
+  updateSheetPreview();
   $('sheet').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
   if (!t) setTimeout(() => $('sheet-amount').focus(), 50);
@@ -405,11 +525,62 @@ function closeSheet() {
   document.body.style.overflow = '';
 }
 
+// ยอดที่ใช้วันนี้ ถ้าจดรายการในแผ่นนี้ (ไม่นับยอดเดิมของรายการที่กำลังแก้)
+function todayAfterSheet(amount) {
+  const n = todayNumbers();
+  const old = editingId ? data.txns.find((t) => t.id === editingId) : null;
+  const oldToday = old && old.type === 'expense' && old.date === n.today ? old.amount : 0;
+  return { n, before: n.spentToday - oldToday, after: n.spentToday - oldToday + amount };
+}
+
+// บอกล่วงหน้าระหว่างพิมพ์ว่าจดแล้ววันนี้จะเหลือเท่าไหร่
+function updateSheetPreview() {
+  const el = $('sheet-preview');
+  const amount = num($('sheet-amount').value);
+  const isToday = $('sheet-date').value === ymd(todayDate());
+  if (sheetType !== 'expense' || !amount || !isToday || data.settings.income === null || !data.settings.warnPct) {
+    el.classList.add('hidden');
+    return;
+  }
+  const { n, after } = todayAfterSheet(amount);
+  const left = n.daily - after;
+  const state = todayState(after, n.daily);
+  const styles = {
+    ok: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200',
+    near: 'bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200',
+    over: 'bg-orange-50 text-orange-900 dark:bg-orange-500/10 dark:text-orange-200',
+  };
+  el.className = `mt-2 text-sm rounded-xl px-3 py-2 ${styles[state]}`;
+  el.textContent = state === 'over'
+    ? `⚠️ จดแล้วจะเกินงบวันนี้ ${fmtMoney(-left)}`
+    : state === 'near'
+      ? `⚠️ จดแล้ววันนี้จะเหลือแค่ ${fmtMoney(left)}`
+      : `จดแล้ววันนี้ยังใช้ได้อีก ${fmtMoney(left)}`;
+}
+
+// เตือนหลังบันทึก เฉพาะตอนที่ข้ามเกณฑ์ (จะได้ไม่เตือนซ้ำทุกรายการ)
+function warnAfterSave(before, after, n) {
+  if (!data.settings.warnPct) return false;
+  const was = todayState(before, n.daily);
+  const now = todayState(after, n.daily);
+  if (now === was || now === 'ok') return false;
+  if (now === 'over') {
+    const t = todayNumbers();
+    const tail = t.tomorrow !== null ? ` พรุ่งนี้จะเหลือใช้ได้ ${fmtMoney(t.tomorrow)}` : '';
+    toast(`⚠️ เกินงบวันนี้ ${fmtMoney(after - n.daily)} แล้ว${tail}`, 'warn', 5000);
+  } else {
+    toast(`⚠️ ใช้ไป ${n.daily > 0 ? Math.round((after / n.daily) * 100) : 100}% ของงบวันนี้แล้ว เหลืออีก ${fmtMoney(n.daily - after)}`, 'warn', 4500);
+  }
+  return true;
+}
+
 function saveSheet() {
   const amount = num($('sheet-amount').value);
   if (!amount) return toast('ใส่จำนวนเงินก่อน', 'error');
   const date = $('sheet-date').value;
   if (!isYmd(date)) return toast('เลือกวันที่ก่อน', 'error');
+  const counts = sheetType === 'expense' && date === ymd(todayDate()) && data.settings.income !== null;
+  const check = counts ? todayAfterSheet(amount) : null;
   const fields = { type: sheetType, amount, cat: sheetType === 'income' ? 'other' : sheetCat, note: $('sheet-note').value.trim().slice(0, 60), date };
   if (editingId) {
     const t = data.txns.find((x) => x.id === editingId);
@@ -420,6 +591,7 @@ function saveSheet() {
   save();
   closeSheet();
   renderAll();
+  if (check && warnAfterSave(check.before, check.after, check.n)) return;
   toast(editingId ? 'แก้ไขแล้ว' : `บันทึก ${fmtMoney(amount)} แล้ว`, 'success', 1500);
 }
 
@@ -488,7 +660,7 @@ function clearAll() {
 // ---------- Toast ----------
 function toast(msg, kind = 'info', ms = 2500) {
   const el = document.createElement('div');
-  const color = kind === 'error' ? 'bg-rose-600' : kind === 'success' ? 'bg-emerald-600' : 'bg-slate-800';
+  const color = { error: 'bg-rose-600', success: 'bg-emerald-600', warn: 'bg-orange-600' }[kind] || 'bg-slate-800';
   el.className = `toast pointer-events-auto ${color} text-white text-sm px-4 py-2.5 rounded-xl shadow-lg max-w-sm text-center`;
   el.textContent = msg;
   $('toasts').appendChild(el);
@@ -519,6 +691,8 @@ function init() {
   renderAll();
   switchTab(getStorage(KEYS.tab, 'home'));
 
+  $('sheet-amount').addEventListener('input', updateSheetPreview);
+  $('sheet-date').addEventListener('change', updateSheetPreview);
   $('sheet-amount').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveSheet(); });
   $('fixed-amount').addEventListener('keydown', (e) => { if (e.key === 'Enter') addFixed(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
