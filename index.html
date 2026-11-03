@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>พอเดือน – วางแผนเงินรายเดือน</title>
+  <meta name="description" content="บอกว่าวันนี้ใช้เงินได้อีกกี่บาท ถึงจะอยู่รอดถึงสิ้นเดือน" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#059669" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="พอเดือน" />
+
+  <!-- ตั้งโหมดมืดก่อนหน้าเว็บแสดงผล เพื่อไม่ให้หน้าจอกะพริบเป็นสีขาว -->
+  <script>
+    try {
+      var t = JSON.parse(localStorage.getItem('pd_theme') || '"system"');
+      if (t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) {}
+  </script>
+
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="css/style.css" />
+
+  <style type="text/tailwindcss">
+    /* อยู่ใน layer components เพื่อให้คลาสอย่าง hidden หรือ w-28 ทับได้ */
+    @layer components {
+    .card { @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm; }
+    .input { @apply w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 p-2.5 rounded-xl text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500; }
+    .label { @apply block text-slate-600 dark:text-slate-400 text-xs mb-1; }
+    .muted { @apply text-slate-500 dark:text-slate-400; }
+    .heading { @apply text-slate-900 dark:text-slate-100; }
+    .btn-primary { @apply inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white px-4 py-2.5 rounded-xl font-medium shadow-sm transition disabled:opacity-50; }
+    .btn-secondary { @apply inline-flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-xl font-medium transition; }
+    .btn-danger { @apply inline-flex items-center justify-center gap-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 px-4 py-2.5 rounded-xl font-medium transition; }
+    .icon-btn { @apply p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100 transition; }
+    .bottom-tab { @apply flex-1 flex flex-col items-center justify-center gap-0.5 pt-2 pb-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 transition; }
+    .bottom-tab.active { @apply text-emerald-600 dark:text-emerald-400; }
+    .chip { @apply flex flex-col items-center gap-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 transition; }
+    .chip.active { @apply border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200; }
+    .seg { @apply flex-1 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 transition; }
+    .seg.active { @apply bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm; }
+    .theme-opt { @apply flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-300 transition; }
+    .theme-opt.active { @apply border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200; }
+    .row-btn { @apply w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 transition; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 min-h-screen">
+
+  <header class="bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 safe-top">
+    <div class="max-w-lg mx-auto px-4 h-14 flex items-center gap-2">
+      <div class="bg-emerald-600 text-white p-1.5 rounded-xl shadow-md">
+        <i data-lucide="wallet" class="w-5 h-5"></i>
+      </div>
+      <span class="font-bold text-lg tracking-tight text-emerald-950 dark:text-white">พอเดือน</span>
+      <span id="header-cycle" class="ml-auto text-xs muted"></span>
+    </div>
+  </header>
+
+  <main class="max-w-lg mx-auto px-4 pt-4 pb-40">
+
+    <!-- ===== หน้าแรก ===== -->
+    <section id="tab-home" class="tab-panel space-y-4">
+      <div id="setup-card" class="card p-5 hidden">
+        <div class="text-3xl mb-2">👋</div>
+        <h2 class="font-semibold text-lg heading">เริ่มต้นใช้งาน</h2>
+        <p class="muted text-sm mt-1">บอกก่อนว่าได้เงินเดือนละเท่าไหร่ และเงินเข้าวันที่เท่าไหร่ แอปจะคำนวณให้ว่าแต่ละวันใช้ได้กี่บาท</p>
+        <div class="grid grid-cols-2 gap-3 mt-4">
+          <div>
+            <label class="label" for="setup-income">เงินที่ได้ต่อเดือน (บาท)</label>
+            <input id="setup-income" type="number" inputmode="decimal" min="0" class="input" placeholder="เช่น 8000" />
+          </div>
+          <div>
+            <label class="label" for="setup-payday">เงินเข้าวันที่</label>
+            <select id="setup-payday" class="input"></select>
+          </div>
+        </div>
+        <button onclick="finishSetup()" class="btn-primary w-full mt-4">เริ่มเลย</button>
+        <p class="muted text-xs mt-3">ค่าหอ ค่าโทรศัพท์ และเงินที่อยากเก็บ ตั้งเพิ่มได้ภายหลังในแท็บ "ตั้งค่า"</p>
+      </div>
+
+      <div id="today-card" class="hidden rounded-3xl p-5 text-white shadow-lg bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-800">
+        <div class="text-sm opacity-90" id="today-label">วันนี้ใช้ได้อีก</div>
+        <div class="text-5xl font-bold tracking-tight mt-1" id="today-amount">฿0</div>
+        <div class="text-sm opacity-90 mt-2" id="today-sub"></div>
+        <div class="mt-4 h-2 rounded-full bg-white/25 overflow-hidden">
+          <div id="today-bar" class="h-full bg-white rounded-full transition-all" style="width:0%"></div>
+        </div>
+        <div class="flex justify-between text-xs opacity-90 mt-1.5">
+          <span id="today-spent">ใช้ไป ฿0</span>
+          <span id="today-limit">งบวันนี้ ฿0</span>
+        </div>
+      </div>
+
+      <div id="stats-grid" class="grid grid-cols-3 gap-3 hidden">
+        <div class="card p-3">
+          <div class="text-[11px] muted">เหลือทั้งรอบ</div>
+          <div class="font-semibold heading mt-0.5" id="stat-remaining">฿0</div>
+        </div>
+        <div class="card p-3">
+          <div class="text-[11px] muted">ใช้ไปแล้ว</div>
+          <div class="font-semibold heading mt-0.5" id="stat-spent">฿0</div>
+        </div>
+        <div class="card p-3">
+          <div class="text-[11px] muted">เงินเข้าอีก</div>
+          <div class="font-semibold heading mt-0.5" id="stat-days">0 วัน</div>
+        </div>
+      </div>
+
+      <div id="month-card" class="card p-4 hidden">
+        <div class="flex justify-between text-sm">
+          <span class="muted">งบใช้จ่ายรอบนี้</span>
+          <span class="font-medium heading" id="month-budget">฿0</span>
+        </div>
+        <div class="mt-2 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+          <div id="month-bar" class="h-full bg-emerald-500 rounded-full transition-all" style="width:0%"></div>
+        </div>
+        <div class="text-xs muted mt-2" id="month-note"></div>
+      </div>
+
+      <div id="today-list-card" class="card p-2 hidden">
+        <div class="flex items-center justify-between px-3 pt-2 pb-1">
+          <h3 class="font-semibold heading">วันนี้</h3>
+          <span class="text-xs muted" id="today-count"></span>
+        </div>
+        <div id="today-list"></div>
+      </div>
+    </section>
+
+    <!-- ===== ประวัติ ===== -->
+    <section id="tab-history" class="tab-panel space-y-4 hidden">
+      <div class="card p-2 flex items-center">
+        <button class="icon-btn" onclick="shiftCycle(-1)" aria-label="รอบก่อนหน้า"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+        <div class="flex-1 text-center">
+          <div class="font-semibold heading text-sm" id="hist-label"></div>
+          <div class="text-xs muted" id="hist-range"></div>
+        </div>
+        <button class="icon-btn" id="hist-next" onclick="shiftCycle(1)" aria-label="รอบถัดไป"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3">
+        <div class="card p-3">
+          <div class="text-[11px] muted">งบใช้จ่าย</div>
+          <div class="font-semibold heading mt-0.5" id="hist-budget">฿0</div>
+        </div>
+        <div class="card p-3">
+          <div class="text-[11px] muted">ใช้ไป</div>
+          <div class="font-semibold heading mt-0.5" id="hist-spent">฿0</div>
+        </div>
+        <div class="card p-3">
+          <div class="text-[11px] muted" id="hist-left-label">เหลือ</div>
+          <div class="font-semibold mt-0.5" id="hist-left">฿0</div>
+        </div>
+      </div>
+
+      <div class="card p-4">
+        <h3 class="font-semibold heading mb-3">ใช้ไปกับอะไรบ้าง</h3>
+        <div id="hist-cats" class="space-y-3"></div>
+      </div>
+
+      <div class="card p-2">
+        <h3 class="font-semibold heading px-3 pt-2 pb-1">รายการทั้งหมด</h3>
+        <div id="hist-list"></div>
+      </div>
+    </section>
+
+    <!-- ===== ตั้งค่า ===== -->
+    <section id="tab-settings" class="tab-panel space-y-4 hidden">
+      <div class="card p-4 space-y-3">
+        <h3 class="font-semibold heading">รายรับ</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label" for="set-income">เงินที่ได้ต่อเดือน (บาท)</label>
+            <input id="set-income" type="number" inputmode="decimal" min="0" class="input" onchange="saveSettingsForm()" />
+          </div>
+          <div>
+            <label class="label" for="set-payday">เงินเข้าวันที่</label>
+            <select id="set-payday" class="input" onchange="saveSettingsForm()"></select>
+          </div>
+        </div>
+        <div>
+          <label class="label" for="set-saving">เงินที่อยากเก็บต่อเดือน (บาท)</label>
+          <input id="set-saving" type="number" inputmode="decimal" min="0" class="input" placeholder="0" onchange="saveSettingsForm()" />
+          <p class="text-xs muted mt-1">ส่วนนี้จะถูกกันไว้ ไม่นับเป็นเงินที่ใช้ได้</p>
+        </div>
+      </div>
+
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-1">
+          <h3 class="font-semibold heading">ค่าใช้จ่ายประจำ</h3>
+          <span class="text-sm muted" id="fixed-total"></span>
+        </div>
+        <p class="text-xs muted mb-3">จ่ายทุกเดือนแน่นอน เช่น ค่าหอ ค่าโทรศัพท์ จะถูกหักออกจากงบก่อน</p>
+        <div id="fixed-list" class="space-y-2"></div>
+        <div class="grid grid-cols-[1fr_7rem_auto] gap-2 mt-3">
+          <input id="fixed-name" class="input" placeholder="เช่น ค่าหอ" />
+          <input id="fixed-amount" type="number" inputmode="decimal" min="0" class="input" placeholder="บาท" />
+          <button onclick="addFixed()" class="btn-primary px-3" aria-label="เพิ่ม"><i data-lucide="plus" class="w-5 h-5"></i></button>
+        </div>
+      </div>
+
+      <div class="card p-4">
+        <h3 class="font-semibold heading mb-3">ธีม</h3>
+        <div class="flex gap-2">
+          <button class="theme-opt" data-theme-opt="light" onclick="setTheme('light')"><i data-lucide="sun" class="w-5 h-5"></i>สว่าง</button>
+          <button class="theme-opt" data-theme-opt="dark" onclick="setTheme('dark')"><i data-lucide="moon" class="w-5 h-5"></i>มืด</button>
+          <button class="theme-opt" data-theme-opt="system" onclick="setTheme('system')"><i data-lucide="smartphone" class="w-5 h-5"></i>ตามเครื่อง</button>
+        </div>
+      </div>
+
+      <div class="card p-4 space-y-2">
+        <h3 class="font-semibold heading mb-1">ข้อมูล</h3>
+        <p class="text-xs muted mb-2">ข้อมูลทั้งหมดเก็บอยู่ในเบราว์เซอร์ของเครื่องนี้เท่านั้น สำรองไว้เป็นไฟล์เพื่อย้ายไปเครื่องอื่นได้</p>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="exportData()" class="btn-secondary"><i data-lucide="download" class="w-4 h-4"></i>สำรองข้อมูล</button>
+          <button onclick="$('import-file').click()" class="btn-secondary"><i data-lucide="upload" class="w-4 h-4"></i>นำเข้า</button>
+        </div>
+        <input id="import-file" type="file" accept="application/json,.json" class="hidden" onchange="importData(event)" />
+        <button onclick="clearAll()" class="btn-danger w-full"><i data-lucide="trash-2" class="w-4 h-4"></i>ลบข้อมูลทั้งหมด</button>
+      </div>
+
+      <button id="install-btn" onclick="installApp()" class="btn-primary w-full hidden"><i data-lucide="download" class="w-4 h-4"></i>ติดตั้งแอปบนเครื่องนี้</button>
+    </section>
+  </main>
+
+  <!-- ปุ่มเพิ่มรายการ -->
+  <button id="fab" onclick="openSheet()" class="fixed z-30 right-1/2 translate-x-1/2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-full shadow-lg shadow-emerald-600/30 px-6 py-3.5 flex items-center gap-2 font-medium transition">
+    <i data-lucide="plus" class="w-5 h-5"></i>จดรายการ
+  </button>
+
+  <!-- แถบเมนูด้านล่าง -->
+  <nav class="fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 safe-bottom" aria-label="เมนูหลัก">
+    <div class="max-w-lg mx-auto flex">
+      <button class="bottom-tab" data-tab="home" onclick="switchTab('home')"><i data-lucide="house" class="w-5 h-5"></i>หน้าแรก</button>
+      <button class="bottom-tab" data-tab="history" onclick="switchTab('history')"><i data-lucide="chart-pie" class="w-5 h-5"></i>ประวัติ</button>
+      <button class="bottom-tab" data-tab="settings" onclick="switchTab('settings')"><i data-lucide="settings" class="w-5 h-5"></i>ตั้งค่า</button>
+    </div>
+  </nav>
+
+  <!-- แผ่นกรอกรายการ -->
+  <div id="sheet" class="fixed inset-0 z-40 hidden">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeSheet()"></div>
+    <div class="sheet absolute bottom-0 inset-x-0 max-w-lg mx-auto bg-white dark:bg-slate-900 rounded-t-3xl p-5 safe-bottom max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-semibold text-lg heading" id="sheet-title">จดรายการ</h2>
+        <button class="icon-btn" onclick="closeSheet()" aria-label="ปิด"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 mb-4">
+        <button class="seg" data-type="expense" onclick="setSheetType('expense')">รายจ่าย</button>
+        <button class="seg" data-type="income" onclick="setSheetType('income')">รายรับเพิ่ม</button>
+      </div>
+
+      <label class="label" for="sheet-amount">จำนวนเงิน (บาท)</label>
+      <input id="sheet-amount" type="number" inputmode="decimal" min="0" step="any" class="input !text-2xl font-semibold" placeholder="0" />
+
+      <div id="sheet-cats-wrap" class="mt-4">
+        <div class="label">หมวด</div>
+        <div id="sheet-cats" class="grid grid-cols-3 gap-2"></div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mt-4">
+        <div>
+          <label class="label" for="sheet-note">โน้ต (ไม่ใส่ก็ได้)</label>
+          <input id="sheet-note" class="input" maxlength="60" placeholder="เช่น ข้าวมันไก่" />
+        </div>
+        <div>
+          <label class="label" for="sheet-date">วันที่</label>
+          <input id="sheet-date" type="date" class="input" />
+        </div>
+      </div>
+
+      <button onclick="saveSheet()" class="btn-primary w-full mt-5 py-3">บันทึก</button>
+      <button id="sheet-delete" onclick="deleteFromSheet()" class="btn-danger w-full mt-2 hidden"><i data-lucide="trash-2" class="w-4 h-4"></i>ลบรายการนี้</button>
+    </div>
+  </div>
+
+  <div id="toasts" class="fixed top-16 inset-x-0 z-50 flex flex-col items-center gap-2 px-4 pointer-events-none"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
