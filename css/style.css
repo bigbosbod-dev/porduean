@@ -204,6 +204,48 @@ body {
 .confetti { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
 .confetti i { position: absolute; top: 0; width: 8px; height: 12px; border-radius: 2px; animation: confetti-fall 2s cubic-bezier(0.25, 0.6, 0.4, 1) forwards; }
 
+/* ================= รายงาน PDF (หน้า A4 สีคงที่ ไม่ตามโหมดมืด) ================= */
+.rpt-wrap { position: fixed; left: -10000px; top: 0; z-index: -1; }
+.rpt-page {
+  position: relative; width: 794px; height: 1123px; padding: 48px 52px; box-sizing: border-box; overflow: hidden;
+  background: #fff; color: #1e293b; font-family: 'Prompt', sans-serif; font-size: 12.5px; line-height: 1.45;
+}
+.rpt-page + .rpt-page { margin-top: 20px; }
+.rpt-title { font-size: 24px; font-weight: 700; color: #064e3b; }
+.rpt-sub { font-size: 14px; color: #475569; margin-top: 2px; }
+.rpt-meta { margin-top: 14px; border-collapse: collapse; }
+.rpt-meta td { padding: 2px 0; }
+.rpt-meta td:first-child { color: #64748b; width: 120px; }
+.rpt-h { font-size: 15px; font-weight: 600; color: #064e3b; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #a7f3d0; }
+.rpt-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.rpt-table th { background: #ecfdf5; color: #065f46; font-weight: 600; text-align: right; padding: 6px 8px; border-bottom: 1px solid #a7f3d0; }
+.rpt-table td { text-align: right; padding: 5px 8px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+/* ไม่ใช้ overflow:hidden ในหน้ารายงาน เพราะ html2canvas วาดตัวอักษรต่ำกว่าจริงเล็กน้อย สระล่างจะโดนตัด (ตัดข้อความยาวใน JS แทน) */
+.rpt-table .l { text-align: left; }
+.rpt-table tfoot td { font-weight: 700; border-top: 2px solid #94a3b8; border-bottom: none; }
+.rpt-table .pos { color: #047857; }
+.rpt-table .neg, .rpt-page .neg { color: #c2410c; }
+.rpt-table .muted { color: #64748b; }
+.rpt-compact td { padding: 4px 6px; }
+.rpt-ledger td { height: 25px; line-height: 16px; padding: 3px 8px 6px; box-sizing: border-box; }
+.rpt-month td { text-align: left !important; height: 44px !important; vertical-align: bottom; padding-bottom: 8px !important; font-weight: 600; color: #065f46; font-size: 13.5px; border-bottom: 1.5px solid #6ee7b7; }
+.rpt-subtotal td { height: 30px !important; font-weight: 600; background: #f8fafc; border-bottom: 1.5px solid #94a3b8; }
+.rpt-note { font-size: 11px; color: #64748b; margin-top: 4px; }
+.rpt-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.rpt-bars { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.rpt-bar-row { display: grid; grid-template-columns: 96px 1fr 76px; align-items: center; gap: 8px; }
+.rpt-bar-label { white-space: nowrap; color: #475569; line-height: 18px; }
+.rpt-bar { height: 14px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+.rpt-bar i { display: block; height: 100%; background: #059669; border-radius: 0 4px 4px 0; }
+.rpt-bar-val { text-align: right; }
+.rpt-dot { font-size: 11px; margin-right: 6px; }
+.rpt-list { margin: 0; padding: 0; list-style: none; }
+.rpt-list li { margin: 3px 0; padding-left: 18px; position: relative; }
+.rpt-list li .b { position: absolute; left: 4px; color: #059669; }
+.rpt-sign { margin-top: 40px; margin-left: auto; width: 330px; text-align: center; line-height: 2.2; }
+.rpt-src { position: absolute; left: 52px; right: 52px; bottom: 64px; font-size: 10.5px; color: #94a3b8; }
+.rpt-foot { position: absolute; left: 52px; right: 52px; bottom: 28px; display: flex; justify-content: space-between; font-size: 10.5px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 6px; }
+
 /* ปิดอนิเมชันทั้งหมดเมื่อเครื่องตั้ง "ลดการเคลื่อนไหว" */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

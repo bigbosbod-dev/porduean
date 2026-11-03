@@ -1,7 +1,7 @@
 // Service worker ของ "พอเดือน": ทำให้เปิดแอปได้แม้ไม่มีอินเทอร์เน็ต
 // ดูแลเฉพาะหน้าของแอปนี้ (scope ./) ส่วนแคชก็ลบเฉพาะของตัวเอง เพราะอยู่โดเมนเดียวกับ StudyFlow
 // เมื่อแก้ไฟล์ของแอป ให้เปลี่ยนเลขเวอร์ชันนี้ เพื่อให้แคชเก่าถูกล้าง
-const CACHE = 'porduean-v5';
+const CACHE = 'porduean-v6';
 
 const APP_SHELL = [
   './',
@@ -10,6 +10,7 @@ const APP_SHELL = [
   'js/app.js',
   'js/extras.js',
   'js/slip.js',
+  'js/report.js',
   'manifest.webmanifest',
   'icons/icon.svg',
   'icons/icon-192.png',

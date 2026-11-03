@@ -201,7 +201,10 @@
         </div>
       </div>
       <p id="hist-goal-note" class="text-xs muted px-1 -mt-2 hidden"></p>
-      <button id="hist-summary-btn" class="btn-secondary press w-full text-sm" onclick="openSummary(cycleAt(histOffset))">📋 ดูสรุปรอบนี้</button>
+      <div class="grid grid-cols-2 gap-2">
+        <button id="hist-summary-btn" class="btn-secondary press text-sm" onclick="openSummary(cycleAt(histOffset))">📋 ดูสรุปรอบนี้</button>
+        <button class="btn-secondary press text-sm" onclick="openReportForm()">📄 ส่งออก PDF</button>
+      </div>
 
       <div class="card p-4">
         <div class="flex items-baseline justify-between gap-2">
@@ -334,6 +337,7 @@
           <button onclick="$('import-file').click()" class="btn-secondary"><i data-lucide="upload" class="w-4 h-4"></i>นำเข้า</button>
         </div>
         <input id="import-file" type="file" accept="application/json,.json" class="hidden" onchange="importData(event)" />
+        <button onclick="openReportForm()" class="btn-primary press w-full"><i data-lucide="file-text" class="w-4 h-4"></i>ส่งออกรายงาน PDF (เช่น ส่งอาจารย์)</button>
         <button onclick="clearAll()" class="btn-danger w-full"><i data-lucide="trash-2" class="w-4 h-4"></i>ลบข้อมูลทั้งหมด</button>
       </div>
 
@@ -417,6 +421,7 @@
 
   <script src="js/extras.js"></script>
   <script src="js/slip.js"></script>
+  <script src="js/report.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
