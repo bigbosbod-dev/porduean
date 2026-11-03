@@ -47,9 +47,16 @@ function moveTabIndicator() {
   const ind = $('tab-ind');
   const btn = document.querySelector('.bottom-tab.active');
   if (!ind || !btn) return;
-  const w = Math.min(64, btn.offsetWidth * 0.7);
+  // วางให้ตรงกลางไอคอนพอดี
+  const icon = btn.querySelector('svg');
+  const w = 56;
+  const h = 30;
+  const cx = btn.offsetLeft + btn.offsetWidth / 2;
+  const cy = icon ? icon.offsetTop + icon.getBoundingClientRect().height / 2 : 18;
   ind.style.width = `${w}px`;
-  ind.style.transform = `translateX(${btn.offsetLeft + (btn.offsetWidth - w) / 2}px)`;
+  ind.style.height = `${h}px`;
+  ind.style.top = `${btn.offsetTop + cy - h / 2}px`;
+  ind.style.transform = `translateX(${cx - w / 2}px)`;
   ind.classList.add('ready');
 }
 
