@@ -176,7 +176,8 @@ function todayState(spent, daily) {
 }
 
 // ---------- อนิเมชัน ----------
-const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+// ปิดอนิเมชันเมื่อเครื่องตั้ง "ลดการเคลื่อนไหว" หรือผู้ใช้เลือก "ปิด" ในแท็บตั้งค่า
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches || motionLevel() === 'off';
 
 // เล่นอนิเมชันคลาสนี้ใหม่ แม้คลาสเดิมยังค้างอยู่
 function replay(el, cls) {
@@ -195,6 +196,7 @@ function countTo(el, value, format = fmtMoney) {
     el.textContent = format(value);
     return;
   }
+  if (el.dataset.bump !== undefined) replay(el, 'num-tick');
   const t0 = performance.now();
   const dur = Math.min(900, 350 + Math.abs(value - from) / 4);
   const step = (now) => {
@@ -228,7 +230,7 @@ function txnRow(t, { showDate = false } = {}) {
   const c = catOf(t);
   const title = t.note || c.label;
   const sub = [showDate ? fmtDate(parseYmd(t.date), { weekday: 'short', day: 'numeric', month: 'short' }) : '', t.note ? c.label : ''].filter(Boolean).join(' · ');
-  return `<button class="row-btn press ${t.id === newRowId ? 'row-new' : ''}" onclick="openSheet('${t.id}')">
+  return `<button class="row-btn press ${t.id === newRowId ? 'row-new' : ''}" data-row="${t.id}" onclick="openSheet('${t.id}')">
     <span class="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-lg" style="background:${c.color}1f">${c.emoji}</span>
     <span class="flex-1 min-w-0">
       <span class="block truncate heading text-sm font-medium">${escapeHtml(title)}</span>
@@ -258,7 +260,7 @@ function renderHome() {
   const card = $('today-card');
   card.dataset.state = state;
   if (lastState && state !== lastState) {
-    if (state === 'over') replay(card, 'shake');
+    if (state === 'over') { replay(card, 'shake'); fxMoneyAway(card); }
     else if (state === 'near') replay(card, 'pulse');
     else replay(card, 'pulse');
     card.classList.add('glow');
@@ -417,7 +419,8 @@ function renderChart(c, s, animate = false) {
   let nth = 0;
   const bars = chartDays.map((x, i) => {
     if (!x.total) return '';
-    const anim = animate ? ` class="bar-grow" style="animation-delay:${Math.min(nth++ * 18, 450)}ms"` : '';
+    const cls = [animate ? 'bar-grow' : '', x.key === today ? 'bar-today' : ''].filter(Boolean).join(' ');
+    const anim = `${cls ? ` class="${cls}"` : ''}${animate ? ` style="animation-delay:${Math.min(nth++ * 18, 450)}ms"` : ''}`;
     const bx = left + i * slot + (slot - barW) / 2;
     const by = y(x.total);
     const h = top + plotH - by;
@@ -546,10 +549,15 @@ function switchTab(tab) {
   if (!['home', 'history', 'goals', 'settings'].includes(tab)) tab = 'home';
   const changed = tab !== currentTab;
   document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('hidden', p.id !== `tab-${tab}`));
-  if (changed) replay($(`tab-${tab}`), 'panel-in');
+  if (changed) {
+    const panel = $(`tab-${tab}`);
+    panel.classList.remove('panel-in', 'panel-in-l', 'panel-in-r');
+    replay(panel, fxPanelClass(currentTab, tab));
+  }
   document.querySelectorAll('.bottom-tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   currentTab = tab;
   updateFab();
+  moveTabIndicator();
   if (tab === 'history') { histOffset = 0; animateHistory = true; renderHistory(); }
   if (tab === 'goals' && changed) { animateGoals = true; renderGoals(); refreshIcons(); }
   setStorage(KEYS.tab, tab);
@@ -618,6 +626,7 @@ function pickCat(id) {
 
 function setSheetType(type) {
   sheetType = type;
+  $('seg-wrap').dataset.type = type;
   document.querySelectorAll('.seg').forEach((b) => b.classList.toggle('active', b.dataset.type === type));
   $('sheet-cats-wrap').classList.toggle('hidden', type === 'income');
   $('sheet-quick-wrap').classList.toggle('hidden', type === 'income' || !!editingId);
@@ -753,6 +762,8 @@ function saveSheet() {
   newRowId = null;
   if (!editingId && fields.date === ymd(todayDate())) {
     setTimeout(() => floatChip(`${sheetType === 'income' ? '+' : '−'}${fmtMoney(amount)}`), 120);
+    if (currentTab === 'home') fxFly($('fab'), $('today-amount'), sheetType === 'income' ? '💰' : '💸');
+    replay($('logo'), 'pig-wiggle');
   }
   if (catCheck) catWarn(catCheck.cat, catCheck.before, catCheck.before + amount);
   if (check && warnAfterSave(check.before, check.after, check.n)) return;
@@ -761,11 +772,11 @@ function saveSheet() {
 
 function deleteFromSheet() {
   if (!editingId || !confirm('ลบรายการนี้ใช่ไหม?')) return;
-  data.txns = data.txns.filter((t) => t.id !== editingId);
+  const id = editingId;
+  data.txns = data.txns.filter((t) => t.id !== id);
   save();
   closeSheet();
-  renderAll();
-  toast('ลบแล้ว');
+  fxRemoveRow(id, () => { renderAll(); toast('ลบแล้ว'); });
 }
 
 // ---------- Theme ----------
@@ -866,6 +877,7 @@ async function installApp() {
 
 // ---------- Init ----------
 function init() {
+  initFx();
   paydayOptions($('setup-payday'));
   paydayOptions($('set-payday'));
   applyTheme();

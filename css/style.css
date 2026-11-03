@@ -201,7 +201,7 @@ body {
   from { transform: translate(0, -10vh) rotate(0); opacity: 1; }
   to { transform: translate(var(--x), 105vh) rotate(var(--r)); opacity: 0.9; }
 }
-.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
+.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 75; overflow: hidden; }
 .confetti i { position: absolute; top: 0; width: 8px; height: 12px; border-radius: 2px; animation: confetti-fall 2s cubic-bezier(0.25, 0.6, 0.4, 1) forwards; }
 
 /* ================= รายงาน PDF (หน้า A4 สีคงที่ ไม่ตามโหมดมืด) ================= */
@@ -245,6 +245,206 @@ body {
 .rpt-sign { margin-top: 40px; margin-left: auto; width: 330px; text-align: center; line-height: 2.2; }
 .rpt-src { position: absolute; left: 52px; right: 52px; bottom: 64px; font-size: 10.5px; color: #94a3b8; }
 .rpt-foot { position: absolute; left: 52px; right: 52px; bottom: 28px; display: flex; justify-content: space-between; font-size: 10.5px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 6px; }
+
+/* ================= ลูกเล่นแบบ "จัดเต็ม" (html.fx-full) ================= */
+
+/* สลับแท็บ: เลื่อนจากขวา/ซ้ายตามทิศ */
+@keyframes panel-in-r { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes panel-in-l { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+.panel-in-r > * { animation: panel-in-r 0.45s var(--ease-out) both; }
+.panel-in-l > * { animation: panel-in-l 0.45s var(--ease-out) both; }
+.panel-in-r > *:nth-child(2), .panel-in-l > *:nth-child(2) { animation-delay: 0.05s; }
+.panel-in-r > *:nth-child(3), .panel-in-l > *:nth-child(3) { animation-delay: 0.1s; }
+.panel-in-r > *:nth-child(4), .panel-in-l > *:nth-child(4) { animation-delay: 0.15s; }
+.panel-in-r > *:nth-child(n+5), .panel-in-l > *:nth-child(n+5) { animation-delay: 0.2s; }
+
+/* ตัวเลื่อนใต้แท็บที่เลือก */
+.bottom-tab { position: relative; z-index: 1; }
+.tab-ind {
+  position: absolute; left: 0; top: 5px; height: 34px; width: 0; border-radius: 12px; z-index: 0;
+  background: rgb(209 250 229 / 0.8); opacity: 0;
+  transition: transform 0.45s var(--ease-spring), width 0.3s ease, opacity 0.3s;
+}
+.tab-ind.ready { opacity: 1; }
+.dark .tab-ind { background: rgb(16 185 129 / 0.15); }
+
+/* ปุ่มเลือก รายจ่าย/รายรับเพิ่ม มีตัวเลื่อน */
+.seg-wrap { position: relative; }
+.seg-wrap .seg { position: relative; z-index: 1; background: transparent !important; box-shadow: none !important; }
+.seg-ind {
+  position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 8px;
+  background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  transition: transform 0.4s var(--ease-spring);
+}
+.dark .seg-ind { background: rgb(51 65 85); }
+.seg-wrap[data-type="income"] .seg-ind { transform: translateX(100%); }
+
+/* ระลอกน้ำ */
+.ripple-host { overflow: hidden; }
+.ripple {
+  position: absolute; border-radius: 50%; pointer-events: none;
+  background: currentColor; opacity: 0.18; transform: scale(0);
+  animation: ripple 0.6s ease-out forwards;
+}
+@keyframes ripple { to { transform: scale(1); opacity: 0; } }
+
+/* ของที่บิน */
+.fly { position: fixed; left: 0; top: 0; margin: -0.6em 0 0 -0.6em; z-index: 70; pointer-events: none; will-change: transform; line-height: 1; }
+
+/* ตัวเลขเด้งเมื่อเปลี่ยน / เมื่อมีของบินมาโดน */
+@keyframes num-tick { 0% { transform: scale(1); } 30% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes num-hit { 0% { transform: scale(1); } 35% { transform: scale(1.18) rotate(-2deg); } 100% { transform: scale(1); } }
+[data-bump] { display: inline-block; transform-origin: left center; }
+.num-tick { animation: num-tick 0.45s var(--ease-spring); }
+.num-hit { animation: num-hit 0.5s var(--ease-spring); }
+
+/* หมู: กะพริบตา กระดิกหู กระโดด หมุน zzz */
+@keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+@keyframes ear-l { 0%, 86%, 100% { transform: rotate(0); } 90% { transform: rotate(-14deg); } 94% { transform: rotate(6deg); } }
+@keyframes ear-r { 0%, 88%, 100% { transform: rotate(0); } 92% { transform: rotate(14deg); } 96% { transform: rotate(-6deg); } }
+.fx-full .pig-eyes.can-blink { transform-box: fill-box; transform-origin: center; animation: blink 4.2s infinite; }
+.fx-full .pig-ear-l { transform-box: fill-box; transform-origin: 80% 90%; animation: ear-l 5.5s infinite; }
+.fx-full .pig-ear-r { transform-box: fill-box; transform-origin: 20% 90%; animation: ear-r 6.3s infinite; }
+@keyframes zfloat {
+  0% { opacity: 0; transform: translate(0, 6px) scale(0.6); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translate(8px, -14px) scale(1.2); }
+}
+.pig-z { transform-box: fill-box; animation: zfloat 2.4s ease-out infinite; }
+.pig-z-2 { animation-delay: 0.8s; }
+.pig-z-3 { animation-delay: 1.6s; }
+@keyframes pig-jump {
+  0%, 100% { transform: translateY(0) scale(1); }
+  20% { transform: translateY(2px) scale(1.1, 0.88); }
+  50% { transform: translateY(-14px) scale(0.95, 1.06); }
+  75% { transform: translateY(0) scale(1.06, 0.94); }
+}
+.pig-jump { animation: pig-jump 0.6s ease-out; }
+@keyframes pig-spin {
+  0% { transform: rotate(0) scale(1); }
+  50% { transform: rotate(200deg) scale(1.25); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+.pig-spin { animation: pig-spin 0.9s var(--ease-out); }
+
+/* ไฟสตรีคกระพือ */
+.flame { display: inline-block; transform-origin: 50% 90%; }
+@keyframes flicker {
+  0%, 100% { transform: scale(1) rotate(-3deg); }
+  25% { transform: scale(1.12, 1.05) rotate(3deg); }
+  50% { transform: scale(0.95, 1.1) rotate(-2deg); }
+  75% { transform: scale(1.08) rotate(2deg); }
+}
+.fx-full .flame { animation: flicker 1.1s ease-in-out infinite; }
+
+/* แสงวิ่งบนหลอด */
+.shimmer { position: relative; overflow: hidden; }
+@keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+.fx-full .shimmer::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  animation: shimmer 2.6s ease-in-out infinite;
+}
+
+/* การ์ดวันนี้: สีไล่วนช้า ๆ และมีประกายลอยขึ้น */
+@keyframes grad-shift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.fx-full #today-card:not(.pulse):not(.shake) { background-size: 220% 220%; animation: grad-shift 9s ease-in-out infinite; }
+.fx-full #today-card.pulse, .fx-full #today-card.shake { background-size: 220% 220%; }
+.spark-dot { display: none; }
+.fx-full #today-card[data-state="ok"] .spark-dot {
+  display: block; position: absolute; bottom: -6px; width: 6px; height: 6px; border-radius: 50%;
+  background: rgb(255 255 255 / 0.8); box-shadow: 0 0 8px rgb(255 255 255 / 0.9);
+  animation: spark-rise 4.4s ease-in infinite; pointer-events: none;
+}
+@keyframes spark-rise {
+  0% { transform: translateY(0) scale(0.4); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translateY(-190px) translateX(-14px) scale(1); opacity: 0; }
+}
+
+/* แท่งกราฟของวันนี้เรืองแสง */
+@keyframes bar-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
+.fx-full .bar-today:not(.bar-grow) { animation: bar-glow 1.6s ease-in-out infinite; }
+
+/* ปุ่มจดรายการหายใจเบา ๆ */
+@keyframes fab-breathe {
+  0%, 100% { box-shadow: 0 10px 15px -3px rgb(5 150 105 / 0.3), 0 0 0 0 rgb(16 185 129 / 0.35); }
+  50% { box-shadow: 0 10px 15px -3px rgb(5 150 105 / 0.3), 0 0 0 10px rgb(16 185 129 / 0); }
+}
+.fx-full #fab { animation: fab-breathe 2.8s ease-in-out infinite; }
+
+/* วงสีลอยด้านหลัง */
+.bg-blobs { display: none; }
+.fx-full .bg-blobs { display: block; position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.bg-blobs i {
+  position: absolute; width: 340px; height: 340px; border-radius: 50%; opacity: 0.35;
+  background: radial-gradient(circle, var(--c) 0%, transparent 65%);
+  animation: blob 22s ease-in-out infinite alternate;
+}
+.bg-blobs i:nth-child(1) { --c: #6ee7b7; top: -80px; left: -100px; }
+.bg-blobs i:nth-child(2) { --c: #f9a8d4; top: 40%; right: -140px; animation-duration: 27s; animation-delay: -6s; }
+.bg-blobs i:nth-child(3) { --c: #a5b4fc; bottom: -120px; left: 20%; animation-duration: 31s; animation-delay: -12s; }
+.dark .bg-blobs i { opacity: 0.16; }
+@keyframes blob {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(60px, 40px) scale(1.15); }
+  100% { transform: translate(-30px, 80px) scale(0.95); }
+}
+
+/* ฉลองเต็มจอ */
+.celebrate {
+  position: fixed; inset: 0; z-index: 65; display: flex; align-items: center; justify-content: center;
+  background: rgb(15 23 42 / 0.55); animation: fade-in 0.25s ease-out both; padding: 24px;
+}
+.celebrate.out { animation: fade-out 0.28s ease-in forwards; }
+.celebrate-box {
+  position: relative; width: 100%; max-width: 300px; text-align: center; padding: 34px 20px 22px;
+  border-radius: 28px; background: #fff; color: #0f172a; overflow: hidden;
+  animation: celebrate-pop 0.55s var(--ease-spring) both;
+}
+.dark .celebrate-box { background: rgb(15 23 42); color: #f1f5f9; }
+@keyframes celebrate-pop { from { transform: scale(0.5) translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+.celebrate-rays {
+  position: absolute; left: 50%; top: 74px; width: 360px; height: 360px; margin: -180px 0 0 -180px;
+  background: repeating-conic-gradient(rgb(250 204 21 / 0.28) 0 12deg, transparent 12deg 30deg);
+  border-radius: 50%; animation: spin 9s linear infinite;
+  -webkit-mask-image: radial-gradient(circle, #000 25%, transparent 68%); mask-image: radial-gradient(circle, #000 25%, transparent 68%);
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.celebrate-emoji { position: relative; font-size: 76px; line-height: 1; animation: emoji-bounce 1.2s var(--ease-spring) 0.2s both; }
+@keyframes emoji-bounce {
+  0% { transform: scale(0) rotate(-30deg); }
+  60% { transform: scale(1.2) rotate(8deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+.celebrate-title { position: relative; margin-top: 18px; font-size: 22px; font-weight: 700; }
+.celebrate-sub { position: relative; margin-top: 4px; font-size: 15px; opacity: 0.75; }
+.celebrate-tap { position: relative; margin-top: 16px; font-size: 12px; opacity: 0.45; }
+
+/* หน้าต้อนรับ */
+.splash {
+  position: fixed; inset: 0; z-index: 80; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, #10b981, #0d9488); color: #fff;
+}
+.dark .splash { background: linear-gradient(160deg, #065f46, #134e4a); }
+.splash.out { animation: splash-out 0.4s ease-in forwards; }
+@keyframes splash-out { to { opacity: 0; transform: scale(1.08); } }
+.splash-pig { width: 150px; height: 125px; animation: splash-drop 0.9s var(--ease-spring) both; }
+@keyframes splash-drop {
+  0% { transform: translateY(-120vh) rotate(-30deg); }
+  60% { transform: translateY(10px) rotate(6deg) scale(1.05, 0.92); }
+  100% { transform: none; }
+}
+.splash-title { margin-top: 18px; font-size: 34px; font-weight: 700; letter-spacing: -0.02em; animation: panel-in 0.5s var(--ease-out) 0.45s both; }
+.splash-sub { margin-top: 4px; opacity: 0.85; animation: panel-in 0.5s var(--ease-out) 0.6s both; }
+
+/* ปิดอนิเมชันเมื่อผู้ใช้เลือก "ปิด" */
+html.fx-off *, html.fx-off *::before, html.fx-off *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  animation-delay: 0s !important;
+  transition-duration: 0.01ms !important;
+}
 
 /* ปิดอนิเมชันทั้งหมดเมื่อเครื่องตั้ง "ลดการเคลื่อนไหว" */
 @media (prefers-reduced-motion: reduce) {

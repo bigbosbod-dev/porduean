@@ -201,6 +201,7 @@ function quickAdd(id) {
   renderAll();
   newRowId = null;
   floatChip(`−${fmtMoney(q.amount)}`);
+  fxFly(document.querySelector(`[data-quick="${id}"]`), $('today-amount'), '💸');
   const el = document.querySelector(`[data-quick="${id}"]`);
   if (el) replay(el, 'pop');
   // ข้อความเดียวต่อการแตะ: ถ้ามีคำเตือน ปุ่มเลิกทำจะอยู่ในคำเตือนนั้นแทน
@@ -259,26 +260,29 @@ function piggySvg(mood = 'happy') {
     worried: `<circle cx="42" cy="43" r="3.6" fill="${ink}"/><circle cx="78" cy="43" r="3.6" fill="${ink}"/>`
       + line('M35 34 l11 3') + line('M85 34 l-11 3'),
     sad: line('M36 42 q6 6 12 0') + line('M72 42 q6 6 12 0'),
+    sleep: line('M36 44 h12') + line('M72 44 h12'),
   }[mood];
   const mouth = {
     happy: line('M53 71 q7 7 14 0'),
     party: `<path d="M52 70 q8 11 16 0 z" fill="${ink}"/>`,
     worried: line('M52 74 q4 -3 8 0 q4 3 8 0'),
     sad: line('M53 75 q7 -7 14 0'),
+    sleep: `<ellipse cx="60" cy="73" rx="3.5" ry="4" fill="${ink}"/>`,
   }[mood];
   const extra = {
     happy: '',
     party: '<path class="pig-spark" d="M12 18 l2 6 6 2 -6 2 -2 6 -2 -6 -6 -2 6 -2z" fill="#facc15"/><path class="pig-spark pig-spark-2" d="M104 10 l1.5 4.5 4.5 1.5 -4.5 1.5 -1.5 4.5 -1.5 -4.5 -4.5 -1.5 4.5 -1.5z" fill="#facc15"/>',
     worried: '<path class="pig-sweat" d="M97 26 q5 7 0 10 q-5 -3 0 -10z" fill="#7dd3fc"/>',
     sad: '<path class="pig-tear" d="M40 49 q3.5 6 0 9 q-3.5 -3 0 -9z" fill="#7dd3fc"/><path class="pig-tear pig-tear-2" d="M80 49 q3.5 6 0 9 q-3.5 -3 0 -9z" fill="#7dd3fc"/>',
+    sleep: '<text class="pig-z" x="96" y="20" font-size="14" font-weight="700" fill="#818cf8">z</text><text class="pig-z pig-z-2" x="104" y="10" font-size="11" font-weight="700" fill="#818cf8">z</text><text class="pig-z pig-z-3" x="110" y="2" font-size="9" font-weight="700" fill="#818cf8">z</text>',
   }[mood];
   return `<svg viewBox="0 0 120 100" class="w-full h-full overflow-visible" aria-hidden="true">
     <g class="pig-body">
       <rect x="30" y="72" width="13" height="18" rx="5" fill="#f472b6"/>
       <rect x="77" y="72" width="13" height="18" rx="5" fill="#f472b6"/>
       <path d="M104 50 q11 -5 7 6 q-4 6 3 8" stroke="#f472b6" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-      <path d="M28 26 L35 5 L52 20 Z" fill="#f472b6"/>
-      <path d="M68 20 L85 5 L92 26 Z" fill="#f472b6"/>
+      <path class="pig-ear-l" d="M28 26 L35 5 L52 20 Z" fill="#f472b6"/>
+      <path class="pig-ear-r" d="M68 20 L85 5 L92 26 Z" fill="#f472b6"/>
       <ellipse cx="60" cy="52" rx="47" ry="35" fill="#f9a8d4"/>
       <rect x="50" y="20" width="20" height="4.5" rx="2.2" fill="#be185d" opacity=".55"/>
       <circle cx="29" cy="59" r="6.5" fill="#f472b6" opacity=".55"/>
@@ -286,7 +290,7 @@ function piggySvg(mood = 'happy') {
       <ellipse cx="60" cy="58" rx="14" ry="10" fill="#f472b6"/>
       <ellipse cx="55" cy="58" rx="2.6" ry="3.6" fill="#9d174d"/>
       <ellipse cx="65" cy="58" rx="2.6" ry="3.6" fill="#9d174d"/>
-      ${eyes}${mouth}
+      <g class="pig-eyes ${mood === 'happy' || mood === 'worried' || mood === 'party' ? 'can-blink' : ''}">${eyes}</g>${mouth}
     </g>
     ${extra}
   </svg>`;
@@ -297,7 +301,10 @@ function piggyMood() {
   if (data.settings.income === null) return 'happy';
   const n = todayNumbers();
   const st = todayState(n.spentToday, n.daily);
-  return st === 'over' ? 'sad' : st === 'near' ? 'worried' : 'happy';
+  if (st === 'over') return 'sad';
+  if (st === 'near') return 'worried';
+  const h = new Date().getHours();
+  return h >= 22 || h < 6 ? 'sleep' : 'happy'; // ดึกแล้วหมูหลับ
 }
 
 function piggyMessages() {
@@ -310,6 +317,13 @@ function piggyMessages() {
       `วันนี้เกินงบไป ${fmtMoney(-n.left)} แล้ว 😭`,
       n.tomorrow !== null ? `ไม่เป็นไรนะ พรุ่งนี้เริ่มใหม่ ใช้ได้ ${fmtMoney(n.tomorrow)}` : 'ไม่เป็นไรนะ พรุ่งนี้เงินเข้าแล้ว',
       'ช่วยกันประหยัดหน่อยน้า 🥺',
+    ];
+  }
+  if (mood === 'sleep') {
+    return [
+      `zzz... ฝันดีนะ วันนี้ยังเหลือ ${fmtMoney(n.left)} 😴`,
+      'ดึกแล้ว อย่าเผลอสั่งของออนไลน์นะ 🌙',
+      'หนูขอนอนก่อนน้า zzz',
     ];
   }
   if (mood === 'worried') {
@@ -341,13 +355,25 @@ function renderPiggy() {
   const msgs = piggyMessages();
   $('piggy-msg').textContent = msgs[(todayDate().getDate() + piggyPokes) % msgs.length];
   const st = streakInfo();
-  $('streak-chip').innerHTML = `🔥 <b>${st.current}</b> วันติด`;
+  $('streak-chip').innerHTML = `<span class="flame">🔥</span> <b>${st.current}</b> วันติด`;
   const saved = totalSaved();
   $('saved-chip').textContent = saved > 0 ? `🐷 ออมแล้ว ${fmtMoney(saved)}` : '';
 }
 
+let pokeTimes = [];
 function pokePiggy() {
   piggyPokes += 1;
+  const now = Date.now();
+  pokeTimes = pokeTimes.filter((t) => now - t < 2000).concat(now);
+  // เซอร์ไพรส์: แตะรัว ๆ 5 ครั้งใน 2 วินาที
+  if (pokeTimes.length >= 5 && fxFull()) {
+    pokeTimes = [];
+    replay($('piggy'), 'pig-spin');
+    fxCoinRain($('piggy'), 10);
+    $('piggy-msg').textContent = 'ว้าว! หมุนติ้ว ขอบคุณที่เล่นด้วยนะ 🐷💕';
+    replay($('piggy-msg'), 'bubble-pop');
+    return;
+  }
   replay($('piggy'), 'pig-wiggle');
   renderPiggy();
   replay($('piggy-msg'), 'bubble-pop');
@@ -383,7 +409,7 @@ function renderGoals() {
           <button class="icon-btn" onclick="openGoalForm('${g.id}')" aria-label="แก้ไข ${escapeHtml(g.name)}"><i data-lucide="pencil" class="w-4 h-4"></i></button>
         </div>
         <div class="h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 mt-3 overflow-hidden">
-          <div class="h-full rounded-full bg-emerald-500 grow-x" data-w="${pct}" style="width:${animate ? 0 : pct}%"></div>
+          <div class="h-full rounded-full bg-emerald-500 grow-x shimmer" data-w="${pct}" style="width:${animate ? 0 : pct}%"></div>
         </div>
         <div class="text-xs muted mt-1.5">${left > 0 ? `อีก ${fmtMoney(left)} ถึงเป้า` : 'ครบเป้าแล้ว!'}</div>
         <div class="flex gap-2 mt-3">
@@ -503,9 +529,10 @@ function updateGoalDone(g) {
   if (saved >= g.target && !g.doneAt) {
     g.doneAt = ymd(todayDate());
     setTimeout(() => {
+      if (fxCelebrate(g.emoji, 'เป้าหมายสำเร็จ! 🎉', `${g.name} ครบ ${fmtMoney(g.target)} แล้ว เก่งมาก`)) return;
       confetti();
       toast(`🎉 เป้าหมาย ${g.emoji} ${g.name} สำเร็จแล้ว! เก่งมาก`, 'success', 5000);
-    }, 250);
+    }, fxFull() ? 1300 : 250); // รอเหรียญตกลงกระปุกก่อน
   } else if (saved < g.target && g.doneAt) {
     g.doneAt = null;
   }
@@ -557,6 +584,7 @@ function saveDeposit() {
   if (depositDir > 0) {
     replay($('goals-piggy'), 'pig-wiggle');
     floatOver($('goals-piggy'), `+${fmtMoney(amount)}`);
+    fxCoinRain($('goals-piggy'), Math.min(12, 4 + Math.round(amount / 100)));
   }
   toast(depositDir > 0 ? `หยอด ${fmtMoney(amount)} เข้า ${g.name} แล้ว 🐷` : `ถอน ${fmtMoney(amount)} แล้ว`, 'success', 2500);
 }
@@ -686,10 +714,15 @@ function checkBadges() {
   fresh.forEach((b) => { data.badges[b.id] = today; });
   save();
   setTimeout(() => {
+    if (fxFull()) {
+      fresh.slice(0, 3).forEach((b) => fxCelebrate(b.emoji, 'ได้เหรียญใหม่!', b.name));
+      if (fresh.length > 3) toast(`และอีก ${fresh.length - 3} เหรียญ ดูได้ในแท็บ "ออม"`, 'success', 4000);
+      return;
+    }
     confetti();
     const b = fresh[0];
     toast(`🎖️ ได้เหรียญใหม่: ${b.emoji} ${b.name}${fresh.length > 1 ? ` และอีก ${fresh.length - 1} เหรียญ` : ''}`, 'success', 4500, { label: 'ดู', fn: () => switchTab('goals') });
-  }, 400);
+  }, fxFull() ? 1500 : 400); // ให้ฉลองเป้าหมาย/เหรียญตกจบก่อน
 }
 
 function awardBadge(id) {
@@ -697,7 +730,11 @@ function awardBadge(id) {
   data.badges[id] = ymd(todayDate());
   save();
   const b = BADGES.find((x) => x.id === id);
-  setTimeout(() => { confetti(); toast(`🎖️ ได้เหรียญใหม่: ${b.emoji} ${b.name}`, 'success', 4000); }, 400);
+  setTimeout(() => {
+    if (fxCelebrate(b.emoji, 'ได้เหรียญใหม่!', b.name)) return;
+    confetti();
+    toast(`🎖️ ได้เหรียญใหม่: ${b.emoji} ${b.name}`, 'success', 4000);
+  }, 400);
 }
 
 // ---------- พลุกระดาษ ----------

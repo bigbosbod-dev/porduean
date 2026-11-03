@@ -75,10 +75,12 @@
   </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 min-h-screen">
+  <!-- วงสีลอยช้า ๆ ด้านหลัง (เฉพาะอนิเมชันแบบจัดเต็ม) -->
+  <div class="bg-blobs" aria-hidden="true"><i></i><i></i><i></i></div>
 
   <header class="bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 safe-top">
     <div class="max-w-lg mx-auto px-4 h-14 flex items-center gap-2">
-      <div class="bg-emerald-600 text-white p-1.5 rounded-xl shadow-md">
+      <div id="logo" class="bg-emerald-600 text-white p-1.5 rounded-xl shadow-md">
         <i data-lucide="wallet" class="w-5 h-5"></i>
       </div>
       <span class="font-bold text-lg tracking-tight text-emerald-950 dark:text-white">พอเดือน</span>
@@ -109,11 +111,15 @@
       </div>
 
       <div id="today-card" class="hidden rounded-3xl p-5 text-white shadow-lg transition-colors" data-state="ok">
+        <span class="spark-dot" style="left:72%;animation-delay:0s"></span>
+        <span class="spark-dot" style="left:84%;animation-delay:1.1s"></span>
+        <span class="spark-dot" style="left:62%;animation-delay:2.3s"></span>
+        <span class="spark-dot" style="left:92%;animation-delay:3.2s"></span>
         <div class="text-sm opacity-90" id="today-label">วันนี้ใช้ได้อีก</div>
-        <div class="text-5xl font-bold tracking-tight mt-1" id="today-amount">฿0</div>
+        <div class="text-5xl font-bold tracking-tight mt-1" id="today-amount" data-bump>฿0</div>
         <div class="text-sm opacity-90 mt-2" id="today-sub"></div>
         <div class="mt-4 h-2 rounded-full bg-white/25 overflow-hidden">
-          <div id="today-bar" class="h-full bg-white rounded-full" style="width:0%"></div>
+          <div id="today-bar" class="h-full bg-white rounded-full shimmer" style="width:0%"></div>
         </div>
         <div class="flex justify-between text-xs opacity-90 mt-1.5">
           <span id="today-spent">ใช้ไป ฿0</span>
@@ -161,7 +167,7 @@
           <span class="font-medium heading" id="month-budget">฿0</span>
         </div>
         <div class="mt-2 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-          <div id="month-bar" class="h-full bg-emerald-500 rounded-full" style="width:0%"></div>
+          <div id="month-bar" class="h-full bg-emerald-500 rounded-full shimmer" style="width:0%"></div>
         </div>
         <div class="text-xs muted mt-2" id="month-note"></div>
       </div>
@@ -238,9 +244,9 @@
         <button id="goals-piggy" class="pig-bob w-24 h-20 shrink-0" onclick="replay(this, 'pig-wiggle')" aria-label="กระปุกหมู"></button>
         <div class="flex-1 min-w-0">
           <div class="text-xs muted">ออมแล้วทั้งหมด</div>
-          <div id="goals-total" class="text-3xl font-bold heading">฿0</div>
+          <div id="goals-total" class="text-3xl font-bold heading" data-bump>฿0</div>
           <div class="flex items-center gap-2 mt-2">
-            <span class="streak-pill">🔥 <b id="streak-now">0</b> วันติด</span>
+            <span class="streak-pill"><span class="flame">🔥</span> <b id="streak-now">0</b> วันติด</span>
             <span class="text-xs muted">สูงสุด <span id="streak-best">0</span> วัน</span>
           </div>
         </div>
@@ -329,6 +335,16 @@
         </div>
       </div>
 
+      <div class="card p-4">
+        <h3 class="font-semibold heading mb-1">อนิเมชัน</h3>
+        <p class="text-xs muted mb-3">จัดเต็ม = เงินบินได้ หมูมีชีวิต ฉลองเต็มจอ และลูกเล่นทั้งแอป</p>
+        <div class="flex gap-2">
+          <button class="theme-opt" data-motion-opt="full" onclick="setMotion('full')"><span class="text-xl leading-5">✨</span>จัดเต็ม</button>
+          <button class="theme-opt" data-motion-opt="normal" onclick="setMotion('normal')"><span class="text-xl leading-5">🙂</span>ปกติ</button>
+          <button class="theme-opt" data-motion-opt="off" onclick="setMotion('off')"><span class="text-xl leading-5">⏸️</span>ปิด</button>
+        </div>
+      </div>
+
       <div class="card p-4 space-y-2">
         <h3 class="font-semibold heading mb-1">ข้อมูล</h3>
         <p class="text-xs muted mb-2">ข้อมูลทั้งหมดเก็บอยู่ในเบราว์เซอร์ของเครื่องนี้เท่านั้น สำรองไว้เป็นไฟล์เพื่อย้ายไปเครื่องอื่นได้</p>
@@ -352,7 +368,8 @@
 
   <!-- แถบเมนูด้านล่าง -->
   <nav class="fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 safe-bottom" aria-label="เมนูหลัก">
-    <div class="max-w-lg mx-auto flex">
+    <div class="max-w-lg mx-auto flex relative">
+      <span id="tab-ind" class="tab-ind" aria-hidden="true"></span>
       <button class="bottom-tab press" data-tab="home" onclick="switchTab('home')"><i data-lucide="house" class="w-5 h-5"></i>หน้าแรก</button>
       <button class="bottom-tab press" data-tab="history" onclick="switchTab('history')"><i data-lucide="chart-pie" class="w-5 h-5"></i>ประวัติ</button>
       <button class="bottom-tab press" data-tab="goals" onclick="switchTab('goals')"><i data-lucide="piggy-bank" class="w-5 h-5"></i>ออม</button>
@@ -369,7 +386,8 @@
         <button class="icon-btn" onclick="closeSheet()" aria-label="ปิด"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
-      <div class="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 mb-4">
+      <div id="seg-wrap" class="seg-wrap flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 mb-4" data-type="expense">
+        <span class="seg-ind" aria-hidden="true"></span>
         <button class="seg" data-type="expense" onclick="setSheetType('expense')">รายจ่าย</button>
         <button class="seg" data-type="income" onclick="setSheetType('income')">รายรับเพิ่ม</button>
       </div>
@@ -419,6 +437,7 @@
 
   <div id="toasts" class="fixed top-16 inset-x-0 z-50 flex flex-col items-center gap-2 px-4 pointer-events-none"></div>
 
+  <script src="js/fx.js"></script>
   <script src="js/extras.js"></script>
   <script src="js/slip.js"></script>
   <script src="js/report.js"></script>
