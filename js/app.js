@@ -245,7 +245,7 @@ const sortTxns = (arr) => [...arr].sort((a, b) => (b.date.localeCompare(a.date))
 function renderHome() {
   const ready = data.settings.income !== null;
   $('setup-card').classList.toggle('hidden', ready);
-  ['today-card', 'stats-grid', 'month-card', 'today-list-card'].forEach((id) => $(id).classList.toggle('hidden', !ready));
+  ['today-card', 'cycle-card', 'today-list-card'].forEach((id) => $(id).classList.toggle('hidden', !ready));
   updateFab();
   if (!ready) {
     $('header-cycle').textContent = '';
@@ -309,8 +309,16 @@ function renderHome() {
 }
 
 let histOffset = 0;
+// ย้อนได้ถึงรอบที่เริ่มใช้แอปเท่านั้น (รอบก่อนหน้านั้นไม่มีข้อมูลจริง ตัวเลขจะชวนเข้าใจผิด)
+function firstOffset() {
+  if (!data.startDate) return 0;
+  const first = cycleOf(parseYmd(data.startDate)).startStr;
+  let o = 0;
+  while (o > -120 && cycleAt(o).startStr > first) o -= 1;
+  return o;
+}
 function shiftCycle(d) {
-  if (histOffset + d > 0) return;
+  if (histOffset + d > 0 || histOffset + d < firstOffset()) return;
   histOffset += d;
   animateHistory = true;
   replay($('tab-history'), 'panel-in');
@@ -324,6 +332,9 @@ function renderHistory() {
   $('hist-range').textContent = `${fmtDate(c.start)} – ${fmtDate(c.end, { day: 'numeric', month: 'short', year: '2-digit' })}`;
   $('hist-next').disabled = histOffset === 0;
   $('hist-next').classList.toggle('opacity-30', histOffset === 0);
+  const atFirst = histOffset <= firstOffset();
+  $('hist-prev').disabled = atFirst;
+  $('hist-prev').classList.toggle('opacity-30', atFirst);
 
   const left = s.budget - s.spent;
   $('hist-budget').textContent = fmtMoney(s.budget);
@@ -339,6 +350,13 @@ function renderHistory() {
 
   const animate = animateHistory && !reduceMotion();
   animateHistory = false;
+  // ยังไม่มีรายการ: แสดงหน้าชวนจดแทนกราฟว่าง ๆ
+  const empty = !s.txns.length;
+  $('hist-empty').classList.toggle('hidden', !empty);
+  ['hist-chart-card', 'hist-cats-card', 'hist-list-card'].forEach((id) => $(id).classList.toggle('hidden', empty));
+  $('hist-empty-title').textContent = histOffset === 0 ? 'ยังไม่มีรายการในรอบนี้' : 'รอบนี้ไม่มีรายการ';
+  $('hist-empty-sub').textContent = histOffset === 0 ? 'จดรายการแรก แล้วกราฟกับสรุปจะขึ้นที่นี่' : 'ลองกดลูกศรเพื่อดูรอบอื่น';
+  $('hist-empty-btn').classList.toggle('hidden', histOffset !== 0);
   renderChart(c, s, animate);
 
   // หมวดที่ตั้งงบไว้: แถบเทียบกับงบหมวด / หมวดที่ไม่ได้ตั้ง: แถบเทียบกับรายจ่ายทั้งหมด
@@ -543,7 +561,11 @@ function refreshIcons() {
 // ---------- Tabs ----------
 let currentTab = null; // null ตอนเปิดแอป เพื่อให้หน้าแรกเล่นอนิเมชันตอนเปิดด้วย
 // ปุ่ม "จดรายการ" ไม่ต้องแสดงในหน้าตั้งค่า (บังช่องกรอก) และก่อนตั้งค่ารายรับครั้งแรก
-const updateFab = () => $('fab').classList.toggle('hidden', data.settings.income === null || currentTab === 'settings' || currentTab === 'goals');
+const updateFab = () => {
+  const hide = data.settings.income === null || currentTab === 'settings' || currentTab === 'goals';
+  $('fab').classList.toggle('hidden', hide);
+  document.body.classList.toggle('no-fab', hide); // ข้อความแจ้งเตือนเลื่อนลงมาแทนที่ปุ่ม
+};
 
 function switchTab(tab) {
   if (!['home', 'history', 'goals', 'settings'].includes(tab)) tab = 'home';
@@ -573,6 +595,7 @@ function finishSetup() {
   if (!data.startDate) data.startDate = ymd(todayDate());
   save();
   renderAll();
+  setTimeout(() => startTips(), 700);
   toast('ตั้งค่าเรียบร้อย ลองจดรายจ่ายแรกได้เลย', 'success');
 }
 
@@ -878,6 +901,7 @@ async function installApp() {
 // ---------- Init ----------
 function init() {
   initFx();
+  initSettingGroups();
   paydayOptions($('setup-payday'));
   paydayOptions($('set-payday'));
   applyTheme();
@@ -891,6 +915,16 @@ function init() {
   $('fixed-amount').addEventListener('keydown', (e) => { if (e.key === 'Enter') addFixed(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeSheet(); closeModal(); } });
   setTimeout(maybeAutoSummary, 600);
+  setTimeout(maybeStartTips, 1900);
+
+  // เลื่อนลง: ปุ่มจดรายการหดเหลือแค่ + จะได้ไม่บังเนื้อหา / เลื่อนขึ้น: กลับมาเต็ม
+  let lastY = window.scrollY;
+  window.addEventListener('scroll', () => {
+    const y = window.scrollY;
+    if (y > lastY + 6 && y > 60) $('fab').classList.add('fab-mini');
+    else if (y < lastY - 6 || y < 60) $('fab').classList.remove('fab-mini');
+    lastY = y;
+  }, { passive: true });
 
   // ข้ามเที่ยงคืนหรือกลับมาเปิดแอปวันใหม่: คำนวณใหม่
   let lastDay = ymd(todayDate());

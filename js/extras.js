@@ -341,23 +341,38 @@ function piggyMessages() {
   return msgs;
 }
 
+// ลูกโป่งคำพูดของหมู (โผล่ชั่วคราวแล้วหายไปเอง)
+let bubbleTimer = null;
+function showPiggyBubble(text, ms = 4000) {
+  const el = $('piggy-msg');
+  if (!el || $('today-card').classList.contains('hidden')) return;
+  el.textContent = text;
+  el.classList.remove('hidden');
+  replay(el, 'bubble-pop');
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(hidePiggyBubble, ms);
+}
+function hidePiggyBubble() {
+  clearTimeout(bubbleTimer);
+  $('piggy-msg').classList.add('hidden');
+}
+
 function renderPiggy() {
-  const card = $('piggy-card');
   const ready = data.settings.income !== null;
-  card.classList.toggle('hidden', !ready);
   if (!ready) return;
   const mood = piggyMood();
   const box = $('piggy');
-  if (box.dataset.mood !== mood) {
+  const prevMood = box.dataset.mood;
+  if (prevMood !== mood) {
     box.innerHTML = piggySvg(mood);
     box.dataset.mood = mood;
+    // อารมณ์เปลี่ยน (เช่น ใกล้หมดงบ): หมูพูดทันที
+    if (prevMood) showPiggyBubble(piggyMessages()[0]);
   }
-  const msgs = piggyMessages();
-  $('piggy-msg').textContent = msgs[(todayDate().getDate() + piggyPokes) % msgs.length];
   const st = streakInfo();
   $('streak-chip').innerHTML = `<span class="flame">🔥</span> <b>${st.current}</b> วันติด`;
   const saved = totalSaved();
-  $('saved-chip').textContent = saved > 0 ? `🐷 ออมแล้ว ${fmtMoney(saved)}` : '';
+  $('saved-chip').textContent = saved > 0 ? `🐷 ออมเข้าเป้าหมายแล้ว ${fmtMoney(saved)}` : '';
 }
 
 let pokeTimes = [];
@@ -370,13 +385,102 @@ function pokePiggy() {
     pokeTimes = [];
     replay($('piggy'), 'pig-spin');
     fxCoinRain($('piggy'), 10);
-    $('piggy-msg').textContent = 'ว้าว! หมุนติ้ว ขอบคุณที่เล่นด้วยนะ 🐷💕';
-    replay($('piggy-msg'), 'bubble-pop');
+    showPiggyBubble('ว้าว! หมุนติ้ว ขอบคุณที่เล่นด้วยนะ 🐷💕');
     return;
   }
   replay($('piggy'), 'pig-wiggle');
-  renderPiggy();
-  replay($('piggy-msg'), 'bubble-pop');
+  const msgs = piggyMessages();
+  showPiggyBubble(msgs[(todayDate().getDate() + piggyPokes) % msgs.length]);
+}
+
+// ---------- ทัวร์แนะนำการใช้งาน (ครั้งแรก) ----------
+const TIPS_KEY = 'pd_tips_done';
+const TIPS = [
+  { sel: '#today-card', text: 'ตัวเลขนี้คือเงินที่ใช้ได้วันนี้ ถ้าวันนี้ใช้น้อย พรุ่งนี้จะได้เพิ่มเอง สีการ์ดบอกสถานะ: เขียว ปกติ / ส้ม ใกล้หมด / แดง เกินงบ' },
+  { sel: '#piggy', text: 'นี่หมูกระปุก 🐷 แตะเพื่อคุยด้วย หมูจะยิ้ม เหงื่อตก หรือร้องไห้ตามงบของวันนี้' },
+  { sel: '#quick-card', text: '⚡ จดด่วน: ตอนจดรายการให้ติ๊ก "☆ บันทึกเป็นปุ่มจดด่วน" ครั้งหน้าแตะปุ่มเดียวก็จดเสร็จ' },
+  { sel: '#fab', text: 'กดเพื่อจดรายจ่ายหรือรายรับ ถ้ามีสลิปโอนเงิน กด 📷 สแกนสลิปแทนการพิมพ์ได้' },
+  { sel: '.bottom-tab[data-tab=history]', text: 'ประวัติ: กราฟรายวัน สรุปแต่ละรอบ และปุ่มส่งออก PDF ไว้ส่งอาจารย์' },
+  { sel: '.bottom-tab[data-tab=goals]', text: 'ออม: ตั้งเป้าหมายเก็บเงิน ดูสตรีควันไม่เกินงบ และสะสมเหรียญรางวัล 🏅' },
+];
+
+function maybeStartTips() {
+  let done = false;
+  try { done = !!localStorage.getItem(TIPS_KEY); } catch (e) { done = true; }
+  if (done || data.settings.income === null || currentTab !== 'home') return;
+  // รอถ้ามีหน้าต่างอื่นเปิดอยู่ (สรุปรอบ ฉลอง ต้อนรับ)
+  if (!$('modal').classList.contains('hidden') || document.querySelector('.celebrate, .splash')) {
+    setTimeout(maybeStartTips, 1500);
+    return;
+  }
+  startTips();
+}
+
+function replayTips() {
+  switchTab('home');
+  setTimeout(startTips, 450);
+}
+
+function startTips() {
+  if (document.querySelector('.tips')) return;
+  const steps = TIPS.filter((t) => {
+    const el = document.querySelector(t.sel);
+    // ใช้ getClientRects แทน offsetParent เพราะปุ่มที่ position:fixed มี offsetParent เป็น null เสมอ
+    return el && !el.classList.contains('hidden') && el.getClientRects().length > 0;
+  });
+  if (!steps.length) return;
+  hidePiggyBubble();
+  const o = document.createElement('div');
+  o.className = 'tips';
+  o.innerHTML = `<div class="tip-hole"></div>
+    <div class="tip-card">
+      <div class="tip-text"></div>
+      <div class="tip-foot">
+        <span class="tip-count"></span>
+        <button class="tip-skip">ข้าม</button>
+        <button class="tip-next btn-primary press !py-2 !px-4 text-sm"></button>
+      </div>
+    </div>`;
+  document.body.appendChild(o);
+  let i = 0;
+  const finish = () => {
+    try { localStorage.setItem(TIPS_KEY, '1'); } catch (e) { /* ignore */ }
+    o.classList.add('out');
+    setTimeout(() => o.remove(), 250);
+    window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
+  };
+  const show = () => {
+    const step = steps[i];
+    const el = document.querySelector(step.sel);
+    const fixed = getComputedStyle(el).position === 'fixed' || el.closest('nav');
+    if (!fixed) el.scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' });
+    setTimeout(() => {
+      const r = el.getBoundingClientRect();
+      const pad = 8;
+      const hole = o.querySelector('.tip-hole');
+      Object.assign(hole.style, {
+        left: `${r.left - pad}px`, top: `${r.top - pad}px`,
+        width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px`,
+        borderRadius: `${Math.min(28, (r.height + pad * 2) / 2)}px`,
+      });
+      const card = o.querySelector('.tip-card');
+      o.querySelector('.tip-text').textContent = step.text;
+      o.querySelector('.tip-count').textContent = `${i + 1}/${steps.length}`;
+      o.querySelector('.tip-next').textContent = i === steps.length - 1 ? 'เริ่มใช้เลย!' : 'ถัดไป';
+      // วางการ์ดคำอธิบายใต้จุดที่ชี้ ถ้าที่ไม่พอวางด้านบน
+      const below = r.bottom + pad + 12;
+      const cardH = card.offsetHeight || 140;
+      card.style.top = below + cardH < window.innerHeight - 8 ? `${below}px` : `${Math.max(8, r.top - pad - 12 - cardH)}px`;
+      replay(card, 'bubble-pop');
+    }, fixed ? 30 : 380);
+  };
+  o.querySelector('.tip-next').addEventListener('click', (e) => {
+    e.stopPropagation();
+    i += 1;
+    if (i >= steps.length) finish(); else show();
+  });
+  o.querySelector('.tip-skip').addEventListener('click', (e) => { e.stopPropagation(); finish(); });
+  show();
 }
 
 // ---------- เป้าหมายออม ----------
@@ -783,4 +887,18 @@ function renderExtras() {
   renderGoals();
   renderExtraSettings();
   checkBadges();
+}
+
+// ---------- หมวดในหน้าตั้งค่า: จำว่าเปิดหมวดไหนไว้ ----------
+function initSettingGroups() {
+  const key = 'pd_groups';
+  let open = null;
+  try { open = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { open = null; }
+  document.querySelectorAll('.set-group').forEach((d) => {
+    if (Array.isArray(open)) d.open = open.includes(d.dataset.group);
+    d.addEventListener('toggle', () => {
+      const now = [...document.querySelectorAll('.set-group')].filter((x) => x.open).map((x) => x.dataset.group);
+      try { localStorage.setItem(key, JSON.stringify(now)); } catch (e) { /* ignore */ }
+    });
+  });
 }

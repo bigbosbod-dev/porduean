@@ -195,7 +195,13 @@ function fxSplash() {
   o.innerHTML = `<div class="splash-pig">${piggySvg(new Date().getHours() >= 22 || new Date().getHours() < 6 ? 'sleep' : 'party')}</div>
     <div class="splash-title">พอเดือน</div>
     <div class="splash-sub">ใช้เงินพอดี อยู่รอดทั้งเดือน</div>`;
-  const close = () => { o.classList.add('out'); setTimeout(() => o.remove(), 400); };
+  const close = () => {
+    if (o.classList.contains('out')) return;
+    o.classList.add('out');
+    setTimeout(() => o.remove(), 400);
+    // ต้อนรับเสร็จ หมูทักทาย
+    setTimeout(() => { if (data.settings.income !== null) showPiggyBubble(piggyMessages()[0]); }, 500);
+  };
   o.addEventListener('click', close);
   document.body.appendChild(o);
   setTimeout(close, 1300);

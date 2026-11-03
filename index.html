@@ -88,7 +88,7 @@
     </div>
   </header>
 
-  <main class="max-w-lg mx-auto px-4 pt-4 pb-40">
+  <main class="max-w-lg mx-auto px-4 pt-4" style="padding-bottom:calc(11rem + env(safe-area-inset-bottom))">
 
     <!-- ===== หน้าแรก ===== -->
     <section id="tab-home" class="tab-panel space-y-4">
@@ -110,31 +110,22 @@
         <p class="muted text-xs mt-3">ค่าหอ ค่าโทรศัพท์ และเงินที่อยากเก็บ ตั้งเพิ่มได้ภายหลังในแท็บ "ตั้งค่า"</p>
       </div>
 
-      <div id="today-card" class="hidden rounded-3xl p-5 text-white shadow-lg transition-colors" data-state="ok">
+      <div id="today-card" class="hidden relative rounded-3xl p-5 text-white shadow-lg transition-colors" data-state="ok">
         <span class="spark-dot" style="left:72%;animation-delay:0s"></span>
         <span class="spark-dot" style="left:84%;animation-delay:1.1s"></span>
         <span class="spark-dot" style="left:62%;animation-delay:2.3s"></span>
         <span class="spark-dot" style="left:92%;animation-delay:3.2s"></span>
-        <div class="text-sm opacity-90" id="today-label">วันนี้ใช้ได้อีก</div>
+        <button id="piggy" class="today-pig pig-bob" onclick="pokePiggy()" aria-label="กระปุกหมู แตะเพื่อคุยกับหมู"></button>
+        <div id="piggy-msg" class="pig-bubble hidden" onclick="hidePiggyBubble()" role="status"></div>
+        <div class="text-sm opacity-90 pr-20" id="today-label">วันนี้ใช้ได้อีก</div>
         <div class="text-5xl font-bold tracking-tight mt-1" id="today-amount" data-bump>฿0</div>
-        <div class="text-sm opacity-90 mt-2" id="today-sub"></div>
+        <div class="text-sm opacity-90 mt-2 pr-2" id="today-sub"></div>
         <div class="mt-4 h-2 rounded-full bg-white/25 overflow-hidden">
           <div id="today-bar" class="h-full bg-white rounded-full shimmer" style="width:0%"></div>
         </div>
         <div class="flex justify-between text-xs opacity-90 mt-1.5">
           <span id="today-spent">ใช้ไป ฿0</span>
           <span id="today-limit">งบวันนี้ ฿0</span>
-        </div>
-      </div>
-
-      <div id="piggy-card" class="card p-3 flex items-center gap-3 hidden">
-        <button id="piggy" class="pig-bob w-16 h-14 shrink-0" onclick="pokePiggy()" aria-label="กระปุกหมู แตะเพื่อคุยกับหมู"></button>
-        <div class="flex-1 min-w-0">
-          <div id="piggy-msg" class="bubble text-sm heading"></div>
-          <div class="text-xs muted mt-1.5 flex flex-wrap gap-x-3">
-            <span id="streak-chip"></span>
-            <span id="saved-chip"></span>
-          </div>
         </div>
       </div>
 
@@ -146,32 +137,6 @@
         <div id="quick-list" class="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 no-scrollbar"></div>
       </div>
 
-      <div id="stats-grid" class="grid grid-cols-3 gap-3 hidden">
-        <div class="card p-3">
-          <div class="text-[11px] muted">เหลือทั้งรอบ</div>
-          <div class="font-semibold heading mt-0.5" id="stat-remaining">฿0</div>
-        </div>
-        <div class="card p-3">
-          <div class="text-[11px] muted">ใช้ไปแล้ว</div>
-          <div class="font-semibold heading mt-0.5" id="stat-spent">฿0</div>
-        </div>
-        <div class="card p-3">
-          <div class="text-[11px] muted">เงินเข้าอีก</div>
-          <div class="font-semibold heading mt-0.5" id="stat-days">0 วัน</div>
-        </div>
-      </div>
-
-      <div id="month-card" class="card p-4 hidden">
-        <div class="flex justify-between text-sm">
-          <span class="muted">งบใช้จ่ายรอบนี้</span>
-          <span class="font-medium heading" id="month-budget">฿0</span>
-        </div>
-        <div class="mt-2 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-          <div id="month-bar" class="h-full bg-emerald-500 rounded-full shimmer" style="width:0%"></div>
-        </div>
-        <div class="text-xs muted mt-2" id="month-note"></div>
-      </div>
-
       <div id="today-list-card" class="card p-2 hidden">
         <div class="flex items-center justify-between px-3 pt-2 pb-1">
           <h3 class="font-semibold heading">วันนี้</h3>
@@ -179,12 +144,42 @@
         </div>
         <div id="today-list"></div>
       </div>
+
+      <div id="cycle-card" class="card p-4 hidden">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="font-semibold heading">รอบนี้</h3>
+          <span id="streak-chip" class="streak-pill text-xs"></span>
+        </div>
+        <div class="grid grid-cols-3 mt-3 text-center">
+          <div>
+            <div class="text-[11px] muted">เหลือทั้งรอบ</div>
+            <div class="font-semibold heading mt-0.5" id="stat-remaining">฿0</div>
+          </div>
+          <div class="border-x border-slate-200 dark:border-slate-800">
+            <div class="text-[11px] muted">ใช้ไปแล้ว</div>
+            <div class="font-semibold heading mt-0.5" id="stat-spent">฿0</div>
+          </div>
+          <div>
+            <div class="text-[11px] muted">เงินเข้าอีก</div>
+            <div class="font-semibold heading mt-0.5" id="stat-days">0 วัน</div>
+          </div>
+        </div>
+        <div class="flex justify-between text-xs mt-4">
+          <span class="muted">งบใช้จ่ายรอบนี้</span>
+          <span class="font-medium heading" id="month-budget">฿0</span>
+        </div>
+        <div class="mt-1.5 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+          <div id="month-bar" class="h-full bg-emerald-500 rounded-full shimmer" style="width:0%"></div>
+        </div>
+        <div class="text-xs muted mt-2" id="month-note"></div>
+        <div class="text-xs text-pink-700 dark:text-pink-300 mt-1" id="saved-chip"></div>
+      </div>
     </section>
 
     <!-- ===== ประวัติ ===== -->
     <section id="tab-history" class="tab-panel space-y-4 hidden">
       <div class="card p-2 flex items-center">
-        <button class="icon-btn" onclick="shiftCycle(-1)" aria-label="รอบก่อนหน้า"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+        <button class="icon-btn" id="hist-prev" onclick="shiftCycle(-1)" aria-label="รอบก่อนหน้า"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
         <div class="flex-1 text-center">
           <div class="font-semibold heading text-sm" id="hist-label"></div>
           <div class="text-xs muted" id="hist-range"></div>
@@ -212,7 +207,14 @@
         <button class="btn-secondary press text-sm" onclick="openReportForm()">📄 ส่งออก PDF</button>
       </div>
 
-      <div class="card p-4">
+      <div id="hist-empty" class="card p-6 text-center hidden">
+        <div class="empty-emoji">📭</div>
+        <div class="font-semibold heading mt-3" id="hist-empty-title">ยังไม่มีรายการในรอบนี้</div>
+        <p class="text-sm muted mt-1" id="hist-empty-sub">จดรายการแรก แล้วกราฟกับสรุปจะขึ้นที่นี่</p>
+        <button id="hist-empty-btn" class="btn-primary press mt-4" onclick="openSheet()"><i data-lucide="plus" class="w-4 h-4"></i>จดรายการแรก</button>
+      </div>
+
+      <div id="hist-chart-card" class="card p-4">
         <div class="flex items-baseline justify-between gap-2">
           <h3 class="font-semibold heading">รายจ่ายรายวัน</h3>
           <span class="text-xs muted" id="chart-avg"></span>
@@ -226,12 +228,12 @@
         </div>
       </div>
 
-      <div class="card p-4">
+      <div id="hist-cats-card" class="card p-4">
         <h3 class="font-semibold heading mb-3">ใช้ไปกับอะไรบ้าง</h3>
         <div id="hist-cats" class="space-y-3"></div>
       </div>
 
-      <div class="card p-2">
+      <div id="hist-list-card" class="card p-2">
         <h3 class="font-semibold heading px-3 pt-2 pb-1">รายการทั้งหมด</h3>
         <div id="hist-list"></div>
       </div>
@@ -270,8 +272,15 @@
       </div>
     </section>
 
-    <section id="tab-settings" class="tab-panel space-y-4 hidden">
-      <div class="card p-4 space-y-3">
+    <section id="tab-settings" class="tab-panel space-y-3 hidden">
+      <details class="set-group card" data-group="money" open>
+        <summary class="set-sum press">
+          <span class="set-ico">💰</span>
+          <span class="flex-1 min-w-0"><span class="block font-semibold heading">เงินและงบ</span><span class="block text-xs muted truncate">รายรับ ค่าใช้จ่ายประจำ งบรายหมวด การเตือน</span></span>
+          <i data-lucide="chevron-down" class="set-chev w-5 h-5 muted"></i>
+        </summary>
+        <div class="set-body">
+      <div class="set-sec space-y-3">
         <h3 class="font-semibold heading">รายรับ</h3>
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -299,8 +308,7 @@
           <p class="text-xs muted mt-1">ตอนจดรายจ่าย แอปจะบอกล่วงหน้าว่าจดแล้วจะเหลือเท่าไหร่ และเตือนเมื่อใกล้หมดหรือเกินงบ</p>
         </div>
       </div>
-
-      <div class="card p-4">
+      <div class="set-sec">
         <div class="flex items-center justify-between mb-1">
           <h3 class="font-semibold heading">ค่าใช้จ่ายประจำ</h3>
           <span class="text-sm muted" id="fixed-total"></span>
@@ -313,20 +321,40 @@
           <button onclick="addFixed()" class="btn-primary px-3" aria-label="เพิ่ม"><i data-lucide="plus" class="w-5 h-5"></i></button>
         </div>
       </div>
-
-      <div class="card p-4">
+      <div class="set-sec">
         <h3 class="font-semibold heading mb-1">งบรายหมวด (ต่อรอบ)</h3>
         <p class="text-xs muted mb-3">ไม่ใส่ = ไม่จำกัด แอปจะเตือนเมื่อหมวดนั้นใช้ถึง 80% และเมื่อเกินงบ</p>
         <div id="catbudget-list" class="space-y-2"></div>
       </div>
-
-      <div class="card p-4">
+        </div>
+      </details>
+      <details class="set-group card" data-group="quick">
+        <summary class="set-sum press">
+          <span class="set-ico">⚡</span>
+          <span class="flex-1 min-w-0"><span class="block font-semibold heading">จดด่วนและคำแนะนำ</span><span class="block text-xs muted truncate">ปุ่มจดด่วน ทัวร์แนะนำการใช้งาน</span></span>
+          <i data-lucide="chevron-down" class="set-chev w-5 h-5 muted"></i>
+        </summary>
+        <div class="set-body">
+      <div class="set-sec">
         <h3 class="font-semibold heading mb-1">ปุ่มจดด่วน</h3>
         <p class="text-xs muted mb-3">แสดงในหน้าแรก แตะครั้งเดียวจดรายจ่ายวันนี้ได้เลย (สูงสุด 8 ปุ่ม)</p>
         <div id="quick-settings" class="space-y-2"></div>
       </div>
-
-      <div class="card p-4">
+      <div class="set-sec">
+        <h3 class="font-semibold heading mb-1">คำแนะนำการใช้งาน</h3>
+        <p class="text-xs muted mb-3">ดูทัวร์แนะนำปุ่มต่าง ๆ ในหน้าแรกอีกครั้ง</p>
+        <button class="btn-secondary press w-full" onclick="replayTips()">💡 ดูคำแนะนำอีกครั้ง</button>
+      </div>
+        </div>
+      </details>
+      <details class="set-group card" data-group="look">
+        <summary class="set-sum press">
+          <span class="set-ico">🎨</span>
+          <span class="flex-1 min-w-0"><span class="block font-semibold heading">หน้าตาและลูกเล่น</span><span class="block text-xs muted truncate">ธีมสว่าง/มืด ระดับอนิเมชัน</span></span>
+          <i data-lucide="chevron-down" class="set-chev w-5 h-5 muted"></i>
+        </summary>
+        <div class="set-body">
+      <div class="set-sec">
         <h3 class="font-semibold heading mb-3">ธีม</h3>
         <div class="flex gap-2">
           <button class="theme-opt" data-theme-opt="light" onclick="setTheme('light')"><i data-lucide="sun" class="w-5 h-5"></i>สว่าง</button>
@@ -334,8 +362,7 @@
           <button class="theme-opt" data-theme-opt="system" onclick="setTheme('system')"><i data-lucide="smartphone" class="w-5 h-5"></i>ตามเครื่อง</button>
         </div>
       </div>
-
-      <div class="card p-4">
+      <div class="set-sec">
         <h3 class="font-semibold heading mb-1">อนิเมชัน</h3>
         <p class="text-xs muted mb-3">จัดเต็ม = เงินบินได้ หมูมีชีวิต ฉลองเต็มจอ และลูกเล่นทั้งแอป</p>
         <div class="flex gap-2">
@@ -344,8 +371,16 @@
           <button class="theme-opt" data-motion-opt="off" onclick="setMotion('off')"><span class="text-xl leading-5">⏸️</span>ปิด</button>
         </div>
       </div>
-
-      <div class="card p-4 space-y-2">
+        </div>
+      </details>
+      <details class="set-group card" data-group="data">
+        <summary class="set-sum press">
+          <span class="set-ico">💾</span>
+          <span class="flex-1 min-w-0"><span class="block font-semibold heading">ข้อมูลและรายงาน</span><span class="block text-xs muted truncate">ส่งออก PDF สำรอง/นำเข้า ลบข้อมูล</span></span>
+          <i data-lucide="chevron-down" class="set-chev w-5 h-5 muted"></i>
+        </summary>
+        <div class="set-body">
+      <div class="set-sec space-y-2">
         <h3 class="font-semibold heading mb-1">ข้อมูล</h3>
         <p class="text-xs muted mb-2">ข้อมูลทั้งหมดเก็บอยู่ในเบราว์เซอร์ของเครื่องนี้เท่านั้น สำรองไว้เป็นไฟล์เพื่อย้ายไปเครื่องอื่นได้</p>
         <div class="grid grid-cols-2 gap-2">
@@ -356,6 +391,8 @@
         <button onclick="openReportForm()" class="btn-primary press w-full"><i data-lucide="file-text" class="w-4 h-4"></i>ส่งออกรายงาน PDF (เช่น ส่งอาจารย์)</button>
         <button onclick="clearAll()" class="btn-danger w-full"><i data-lucide="trash-2" class="w-4 h-4"></i>ลบข้อมูลทั้งหมด</button>
       </div>
+        </div>
+      </details>
 
       <button id="install-btn" onclick="installApp()" class="btn-primary w-full hidden"><i data-lucide="download" class="w-4 h-4"></i>ติดตั้งแอปบนเครื่องนี้</button>
     </section>
@@ -363,7 +400,7 @@
 
   <!-- ปุ่มเพิ่มรายการ -->
   <button id="fab" onclick="openSheet()" class="fixed z-30 right-1/2 translate-x-1/2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-full shadow-lg shadow-emerald-600/30 px-6 py-3.5 flex items-center gap-2 font-medium transition">
-    <i data-lucide="plus" class="w-5 h-5"></i>จดรายการ
+    <i data-lucide="plus" class="w-5 h-5"></i><span class="fab-label">จดรายการ</span>
   </button>
 
   <!-- แถบเมนูด้านล่าง -->
@@ -392,14 +429,12 @@
         <button class="seg" data-type="income" onclick="setSheetType('income')">รายรับเพิ่ม</button>
       </div>
 
-      <div class="flex items-end justify-between">
-        <label class="label" for="sheet-amount">จำนวนเงิน (บาท)</label>
-        <div id="scan-row">
-          <button type="button" id="scan-btn" onclick="$('slip-file').click()" class="press mb-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-500/10"><i data-lucide="scan-line" class="w-4 h-4"></i>สแกนสลิป</button>
-          <input id="slip-file" type="file" accept="image/*" class="hidden" onchange="scanSlip(event)" />
-        </div>
-      </div>
+      <label class="label" for="sheet-amount">จำนวนเงิน (บาท)</label>
       <input id="sheet-amount" type="number" inputmode="decimal" min="0" step="any" class="input !text-2xl font-semibold" placeholder="0" />
+      <div id="scan-row">
+        <button type="button" id="scan-btn" onclick="$('slip-file').click()" class="scan-btn press"><i data-lucide="scan-line" class="w-4 h-4"></i>มีสลิปโอนเงิน? กดสแกนแทนการพิมพ์</button>
+        <input id="slip-file" type="file" accept="image/*" class="hidden" onchange="scanSlip(event)" />
+      </div>
       <div id="scan-status" class="hidden"></div>
       <div id="sheet-preview" class="hidden mt-2 text-sm rounded-xl px-3 py-2"></div>
 
@@ -435,7 +470,7 @@
     <div id="modal-body" class="sheet absolute bottom-0 inset-x-0 max-w-lg mx-auto bg-white dark:bg-slate-900 rounded-t-3xl p-5 safe-bottom max-h-[92vh] overflow-y-auto"></div>
   </div>
 
-  <div id="toasts" class="fixed top-16 inset-x-0 z-50 flex flex-col items-center gap-2 px-4 pointer-events-none"></div>
+  <div id="toasts" class="fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-4 pointer-events-none"></div>
 
   <script src="js/fx.js"></script>
   <script src="js/extras.js"></script>
