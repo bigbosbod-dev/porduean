@@ -150,12 +150,60 @@ function todayState(spent, daily) {
   return 'ok';
 }
 
+// ---------- อนิเมชัน ----------
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// เล่นอนิเมชันคลาสนี้ใหม่ แม้คลาสเดิมยังค้างอยู่
+function replay(el, cls) {
+  el.classList.remove(cls);
+  void el.offsetWidth; // บังคับให้เบราว์เซอร์เริ่มนับใหม่
+  el.classList.add(cls);
+  el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
+}
+
+// ตัวเลขเงินค่อย ๆ นับจากค่าเดิมไปค่าใหม่
+function countTo(el, value, format = fmtMoney) {
+  const from = el.dataset.v === undefined ? null : Number(el.dataset.v);
+  el.dataset.v = value;
+  cancelAnimationFrame(el._raf);
+  if (from === null || from === value || reduceMotion() || document.hidden) {
+    el.textContent = format(value);
+    return;
+  }
+  const t0 = performance.now();
+  const dur = Math.min(900, 350 + Math.abs(value - from) / 4);
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / dur);
+    const e = 1 - (1 - k) ** 3;
+    const v = from + (value - from) * e;
+    el.textContent = format(k < 1 ? Math.round(v) : value);
+    if (k < 1) el._raf = requestAnimationFrame(step);
+  };
+  el._raf = requestAnimationFrame(step);
+}
+
+// ป้ายจำนวนเงินลอยขึ้นจากการ์ดวันนี้
+function floatChip(text) {
+  if (reduceMotion() || currentTab !== 'home') return;
+  const card = $('today-card');
+  if (card.classList.contains('hidden')) return;
+  const el = document.createElement('div');
+  el.className = 'float-chip';
+  el.textContent = text;
+  card.appendChild(el);
+  el.addEventListener('animationend', () => el.remove(), { once: true });
+}
+
+let lastState = null;   // สถานะการ์ดวันนี้ครั้งก่อน (ไว้ดูว่าเปลี่ยนหรือไม่)
+let newRowId = null;    // รายการที่เพิ่งจด จะเลื่อนเข้ามาพร้อมไฮไลต์
+let animateHistory = true; // เล่นอนิเมชันกราฟเฉพาะตอนเข้าแท็บหรือเปลี่ยนรอบ ไม่ใช่ทุกครั้งที่อัปเดต
+
 // ---------- Render ----------
 function txnRow(t, { showDate = false } = {}) {
   const c = catOf(t);
   const title = t.note || c.label;
   const sub = [showDate ? fmtDate(parseYmd(t.date), { weekday: 'short', day: 'numeric', month: 'short' }) : '', t.note ? c.label : ''].filter(Boolean).join(' · ');
-  return `<button class="row-btn" onclick="openSheet('${t.id}')">
+  return `<button class="row-btn press ${t.id === newRowId ? 'row-new' : ''}" onclick="openSheet('${t.id}')">
     <span class="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-lg" style="background:${c.color}1f">${c.emoji}</span>
     <span class="flex-1 min-w-0">
       <span class="block truncate heading text-sm font-medium">${escapeHtml(title)}</span>
@@ -182,9 +230,18 @@ function renderHome() {
 
   const over = n.left < 0;
   const state = todayState(n.spentToday, n.daily);
-  $('today-card').dataset.state = state;
+  const card = $('today-card');
+  card.dataset.state = state;
+  if (lastState && state !== lastState) {
+    if (state === 'over') replay(card, 'shake');
+    else if (state === 'near') replay(card, 'pulse');
+    else replay(card, 'pulse');
+    card.classList.add('glow');
+    setTimeout(() => card.classList.remove('glow'), 900);
+  }
+  lastState = state;
   $('today-label').textContent = over ? 'วันนี้ใช้เกินงบไปแล้ว' : state === 'near' ? '⚠️ ใกล้หมดงบวันนี้แล้ว เหลืออีก' : 'วันนี้ใช้ได้อีก';
-  $('today-amount').textContent = fmtMoney(Math.abs(n.left));
+  countTo($('today-amount'), Math.abs(n.left));
 
   let sub;
   if (n.remaining < 0) sub = `⚠️ ใช้เกินงบทั้งรอบไปแล้ว ${fmtMoney(-n.remaining)} ลองลดรายจ่ายหรือดึงเงินเก็บมาใช้`;
@@ -198,12 +255,12 @@ function renderHome() {
   $('today-spent').textContent = `ใช้ไป ${fmtMoney(n.spentToday)}`;
   $('today-limit').textContent = `งบวันนี้ ${fmtMoney(n.daily)}`;
 
-  $('stat-remaining').textContent = fmtMoney(n.remaining);
+  countTo($('stat-remaining'), n.remaining);
   $('stat-remaining').classList.toggle('text-rose-600', n.remaining < 0);
-  $('stat-spent').textContent = fmtMoney(n.s.spent);
+  countTo($('stat-spent'), n.s.spent);
   $('stat-days').textContent = `${n.daysLeft} วัน`;
 
-  $('month-budget').textContent = fmtMoney(n.s.budget);
+  countTo($('month-budget'), n.s.budget);
   const pctSpent = n.s.budget > 0 ? (n.s.spent / n.s.budget) * 100 : 100;
   const pctTime = ((n.c.days - n.daysLeft + 1) / n.c.days) * 100;
   const bar = $('month-bar');
@@ -225,7 +282,10 @@ function renderHome() {
 
 let histOffset = 0;
 function shiftCycle(d) {
-  histOffset = Math.min(0, histOffset + d);
+  if (histOffset + d > 0) return;
+  histOffset += d;
+  animateHistory = true;
+  replay($('tab-history'), 'panel-in');
   renderHistory();
 }
 
@@ -244,7 +304,9 @@ function renderHistory() {
   $('hist-left').textContent = fmtMoney(Math.abs(left));
   $('hist-left').className = `font-semibold mt-0.5 ${left < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`;
 
-  renderChart(c, s);
+  const animate = animateHistory && !reduceMotion();
+  animateHistory = false;
+  renderChart(c, s, animate);
 
   const byCat = CATS.map((cat) => ({ cat, total: sum(s.expenses.filter((t) => t.cat === cat.id)) }))
     .filter((x) => x.total > 0)
@@ -258,11 +320,17 @@ function renderHistory() {
           <span class="heading font-medium">${fmtMoney(total)} <span class="muted font-normal text-xs">${Math.round(pct)}%</span></span>
         </div>
         <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-          <div class="h-full rounded-full" style="width:${pct}%;background:${cat.color}"></div>
+          <div class="h-full rounded-full grow-x" data-w="${pct}" style="width:${animate ? 0 : pct}%;background:${cat.color}"></div>
         </div>
       </div>`;
     }).join('')
     : '<p class="text-sm muted text-center py-2">ยังไม่มีรายจ่ายในรอบนี้</p>';
+
+  if (animate) {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.querySelectorAll('#hist-cats [data-w]').forEach((el) => { el.style.width = `${el.dataset.w}%`; });
+    }));
+  }
 
   const groups = {};
   sortTxns(s.txns).forEach((t) => { (groups[t.date] = groups[t.date] || []).push(t); });
@@ -287,7 +355,7 @@ function renderHistory() {
 let chartDays = [];
 let chartPlan = 0;
 
-function renderChart(c, s) {
+function renderChart(c, s, animate = false) {
   const today = ymd(todayDate());
   const byDate = {};
   s.expenses.forEach((t) => { byDate[t.date] = (byDate[t.date] || 0) + t.amount; });
@@ -306,15 +374,17 @@ function renderChart(c, s) {
   const barW = Math.max(2, slot - 2); // ช่องว่าง 2px ระหว่างแท่ง
   const r = Math.min(4, barW / 2);
 
+  let nth = 0;
   const bars = chartDays.map((x, i) => {
     if (!x.total) return '';
+    const anim = animate ? ` class="bar-grow" style="animation-delay:${Math.min(nth++ * 18, 450)}ms"` : '';
     const bx = left + i * slot + (slot - barW) / 2;
     const by = y(x.total);
     const h = top + plotH - by;
     const rr = Math.min(r, h);
     const color = chartPlan > 0 && x.total > chartPlan ? 'var(--bar-over)' : 'var(--bar-ok)';
     // มุมโค้งเฉพาะด้านบน ด้านล่างแนบเส้นฐาน
-    return `<path d="M${bx},${top + plotH} V${by + rr} Q${bx},${by} ${bx + rr},${by} H${bx + barW - rr} Q${bx + barW},${by} ${bx + barW},${by + rr} V${top + plotH} Z" fill="${color}" />`;
+    return `<path d="M${bx},${top + plotH} V${by + rr} Q${bx},${by} ${bx + rr},${by} H${bx + barW - rr} Q${bx + barW},${by} ${bx + barW},${by + rr} V${top + plotH} Z" fill="${color}"${anim} />`;
   }).join('');
 
   // ป้ายวันที่ใต้แกน: วันแรก ทุก 7 วัน และวันสุดท้าย
@@ -427,17 +497,19 @@ function refreshIcons() {
 }
 
 // ---------- Tabs ----------
-let currentTab = 'home';
+let currentTab = null; // null ตอนเปิดแอป เพื่อให้หน้าแรกเล่นอนิเมชันตอนเปิดด้วย
 // ปุ่ม "จดรายการ" ไม่ต้องแสดงในหน้าตั้งค่า (บังช่องกรอก) และก่อนตั้งค่ารายรับครั้งแรก
 const updateFab = () => $('fab').classList.toggle('hidden', data.settings.income === null || currentTab === 'settings');
 
 function switchTab(tab) {
   if (!['home', 'history', 'settings'].includes(tab)) tab = 'home';
+  const changed = tab !== currentTab;
   document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('hidden', p.id !== `tab-${tab}`));
+  if (changed) replay($(`tab-${tab}`), 'panel-in');
   document.querySelectorAll('.bottom-tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   currentTab = tab;
   updateFab();
-  if (tab === 'history') { histOffset = 0; renderHistory(); }
+  if (tab === 'history') { histOffset = 0; animateHistory = true; renderHistory(); }
   setStorage(KEYS.tab, tab);
   window.scrollTo(0, 0);
 }
@@ -490,10 +562,15 @@ let sheetCat = 'food';
 let editingId = null;
 
 function renderSheetCats() {
-  $('sheet-cats').innerHTML = CATS.map((c) => `<button type="button" class="chip ${c.id === sheetCat ? 'active' : ''}" onclick="pickCat('${c.id}')">
+  $('sheet-cats').innerHTML = CATS.map((c) => `<button type="button" class="chip press ${c.id === sheetCat ? 'active' : ''}" onclick="pickCat('${c.id}')">
     <span class="text-xl">${c.emoji}</span>${c.label}</button>`).join('');
 }
-function pickCat(id) { sheetCat = id; renderSheetCats(); }
+function pickCat(id) {
+  sheetCat = id;
+  renderSheetCats();
+  const el = document.querySelector('#sheet-cats .chip.active');
+  if (el) replay(el, 'pop');
+}
 
 function setSheetType(type) {
   sheetType = type;
@@ -515,14 +592,20 @@ function openSheet(id) {
   $('sheet-date').value = t ? t.date : ymd(todayDate());
   $('sheet-delete').classList.toggle('hidden', !t);
   updateSheetPreview();
-  $('sheet').classList.remove('hidden');
+  clearTimeout(sheetCloseTimer);
+  $('sheet').classList.remove('hidden', 'closing');
   document.body.style.overflow = 'hidden';
   if (!t) setTimeout(() => $('sheet-amount').focus(), 50);
 }
 
+let sheetCloseTimer = null;
 function closeSheet() {
-  $('sheet').classList.add('hidden');
+  const el = $('sheet');
+  if (el.classList.contains('hidden') || el.classList.contains('closing')) return;
   document.body.style.overflow = '';
+  if (reduceMotion()) { el.classList.add('hidden'); return; }
+  el.classList.add('closing');
+  sheetCloseTimer = setTimeout(() => el.classList.add('hidden'), 220);
 }
 
 // ยอดที่ใช้วันนี้ ถ้าจดรายการในแผ่นนี้ (ไม่นับยอดเดิมของรายการที่กำลังแก้)
@@ -585,12 +668,18 @@ function saveSheet() {
   if (editingId) {
     const t = data.txns.find((x) => x.id === editingId);
     if (t) Object.assign(t, fields);
+    newRowId = null;
   } else {
-    data.txns.push({ id: uid(), createdAt: Date.now(), ...fields });
+    newRowId = uid();
+    data.txns.push({ id: newRowId, createdAt: Date.now(), ...fields });
   }
   save();
   closeSheet();
   renderAll();
+  newRowId = null;
+  if (!editingId && fields.date === ymd(todayDate())) {
+    setTimeout(() => floatChip(`${sheetType === 'income' ? '+' : '−'}${fmtMoney(amount)}`), 120);
+  }
   if (check && warnAfterSave(check.before, check.after, check.n)) return;
   toast(editingId ? 'แก้ไขแล้ว' : `บันทึก ${fmtMoney(amount)} แล้ว`, 'success', 1500);
 }
@@ -664,7 +753,12 @@ function toast(msg, kind = 'info', ms = 2500) {
   el.className = `toast pointer-events-auto ${color} text-white text-sm px-4 py-2.5 rounded-xl shadow-lg max-w-sm text-center`;
   el.textContent = msg;
   $('toasts').appendChild(el);
-  setTimeout(() => el.remove(), ms);
+  setTimeout(() => {
+    if (reduceMotion()) return el.remove();
+    el.classList.add('leaving');
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+    setTimeout(() => el.remove(), 400); // กันค้างถ้า animationend ไม่มา
+  }, ms);
 }
 
 // ---------- Install (PWA) ----------

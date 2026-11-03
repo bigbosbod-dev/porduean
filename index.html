@@ -88,7 +88,7 @@
             <select id="setup-payday" class="input"></select>
           </div>
         </div>
-        <button onclick="finishSetup()" class="btn-primary w-full mt-4">เริ่มเลย</button>
+        <button onclick="finishSetup()" class="btn-primary press w-full mt-4">เริ่มเลย</button>
         <p class="muted text-xs mt-3">ค่าหอ ค่าโทรศัพท์ และเงินที่อยากเก็บ ตั้งเพิ่มได้ภายหลังในแท็บ "ตั้งค่า"</p>
       </div>
 
@@ -97,7 +97,7 @@
         <div class="text-5xl font-bold tracking-tight mt-1" id="today-amount">฿0</div>
         <div class="text-sm opacity-90 mt-2" id="today-sub"></div>
         <div class="mt-4 h-2 rounded-full bg-white/25 overflow-hidden">
-          <div id="today-bar" class="h-full bg-white rounded-full transition-all" style="width:0%"></div>
+          <div id="today-bar" class="h-full bg-white rounded-full" style="width:0%"></div>
         </div>
         <div class="flex justify-between text-xs opacity-90 mt-1.5">
           <span id="today-spent">ใช้ไป ฿0</span>
@@ -126,7 +126,7 @@
           <span class="font-medium heading" id="month-budget">฿0</span>
         </div>
         <div class="mt-2 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-          <div id="month-bar" class="h-full bg-emerald-500 rounded-full transition-all" style="width:0%"></div>
+          <div id="month-bar" class="h-full bg-emerald-500 rounded-full" style="width:0%"></div>
         </div>
         <div class="text-xs muted mt-2" id="month-note"></div>
       </div>
@@ -268,15 +268,15 @@
   <!-- แถบเมนูด้านล่าง -->
   <nav class="fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 safe-bottom" aria-label="เมนูหลัก">
     <div class="max-w-lg mx-auto flex">
-      <button class="bottom-tab" data-tab="home" onclick="switchTab('home')"><i data-lucide="house" class="w-5 h-5"></i>หน้าแรก</button>
-      <button class="bottom-tab" data-tab="history" onclick="switchTab('history')"><i data-lucide="chart-pie" class="w-5 h-5"></i>ประวัติ</button>
-      <button class="bottom-tab" data-tab="settings" onclick="switchTab('settings')"><i data-lucide="settings" class="w-5 h-5"></i>ตั้งค่า</button>
+      <button class="bottom-tab press" data-tab="home" onclick="switchTab('home')"><i data-lucide="house" class="w-5 h-5"></i>หน้าแรก</button>
+      <button class="bottom-tab press" data-tab="history" onclick="switchTab('history')"><i data-lucide="chart-pie" class="w-5 h-5"></i>ประวัติ</button>
+      <button class="bottom-tab press" data-tab="settings" onclick="switchTab('settings')"><i data-lucide="settings" class="w-5 h-5"></i>ตั้งค่า</button>
     </div>
   </nav>
 
   <!-- แผ่นกรอกรายการ -->
   <div id="sheet" class="fixed inset-0 z-40 hidden">
-    <div class="absolute inset-0 bg-slate-900/50" onclick="closeSheet()"></div>
+    <div class="sheet-backdrop absolute inset-0 bg-slate-900/50" onclick="closeSheet()"></div>
     <div class="sheet absolute bottom-0 inset-x-0 max-w-lg mx-auto bg-white dark:bg-slate-900 rounded-t-3xl p-5 safe-bottom max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between mb-4">
         <h2 class="font-semibold text-lg heading" id="sheet-title">จดรายการ</h2>
@@ -308,7 +308,7 @@
         </div>
       </div>
 
-      <button onclick="saveSheet()" class="btn-primary w-full mt-5 py-3">บันทึก</button>
+      <button onclick="saveSheet()" class="btn-primary press w-full mt-5 py-3">บันทึก</button>
       <button id="sheet-delete" onclick="deleteFromSheet()" class="btn-danger w-full mt-2 hidden"><i data-lucide="trash-2" class="w-4 h-4"></i>ลบรายการนี้</button>
     </div>
   </div>
