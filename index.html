@@ -105,6 +105,25 @@
         </div>
       </div>
 
+      <div id="piggy-card" class="card p-3 flex items-center gap-3 hidden">
+        <button id="piggy" class="pig-bob w-16 h-14 shrink-0" onclick="pokePiggy()" aria-label="กระปุกหมู แตะเพื่อคุยกับหมู"></button>
+        <div class="flex-1 min-w-0">
+          <div id="piggy-msg" class="bubble text-sm heading"></div>
+          <div class="text-xs muted mt-1.5 flex flex-wrap gap-x-3">
+            <span id="streak-chip"></span>
+            <span id="saved-chip"></span>
+          </div>
+        </div>
+      </div>
+
+      <div id="quick-card" class="hidden">
+        <div class="flex items-center justify-between mb-2 px-1">
+          <h3 class="text-sm font-semibold heading">⚡ จดด่วน</h3>
+          <span class="text-xs muted">แตะครั้งเดียวจดเลย</span>
+        </div>
+        <div id="quick-list" class="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 no-scrollbar"></div>
+      </div>
+
       <div id="stats-grid" class="grid grid-cols-3 gap-3 hidden">
         <div class="card p-3">
           <div class="text-[11px] muted">เหลือทั้งรอบ</div>
@@ -165,6 +184,8 @@
           <div class="font-semibold mt-0.5" id="hist-left">฿0</div>
         </div>
       </div>
+      <p id="hist-goal-note" class="text-xs muted px-1 -mt-2 hidden"></p>
+      <button id="hist-summary-btn" class="btn-secondary press w-full text-sm" onclick="openSummary(cycleAt(histOffset))">📋 ดูสรุปรอบนี้</button>
 
       <div class="card p-4">
         <div class="flex items-baseline justify-between gap-2">
@@ -192,6 +213,38 @@
     </section>
 
     <!-- ===== ตั้งค่า ===== -->
+    <!-- ===== ออม ===== -->
+    <section id="tab-goals" class="tab-panel space-y-4 hidden">
+      <div class="card p-4 flex items-center gap-4">
+        <button id="goals-piggy" class="pig-bob w-24 h-20 shrink-0" onclick="replay(this, 'pig-wiggle')" aria-label="กระปุกหมู"></button>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs muted">ออมแล้วทั้งหมด</div>
+          <div id="goals-total" class="text-3xl font-bold heading">฿0</div>
+          <div class="flex items-center gap-2 mt-2">
+            <span class="streak-pill">🔥 <b id="streak-now">0</b> วันติด</span>
+            <span class="text-xs muted">สูงสุด <span id="streak-best">0</span> วัน</span>
+          </div>
+        </div>
+      </div>
+      <p class="text-xs muted px-1 -mt-2">🔥 สตรีค = จำนวนวันติดกันที่ไม่ใช้เกินงบของวันนั้น</p>
+
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold heading">เป้าหมาย</h3>
+          <button onclick="openGoalForm()" class="press text-sm font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i>เพิ่มเป้าหมาย</button>
+        </div>
+        <div id="goal-list" class="space-y-3"></div>
+      </div>
+
+      <div class="card p-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold heading">เหรียญรางวัล</h3>
+          <span id="badge-count" class="text-xs muted"></span>
+        </div>
+        <div id="badge-grid" class="grid grid-cols-4 gap-2 mt-3"></div>
+      </div>
+    </section>
+
     <section id="tab-settings" class="tab-panel space-y-4 hidden">
       <div class="card p-4 space-y-3">
         <h3 class="font-semibold heading">รายรับ</h3>
@@ -237,6 +290,18 @@
       </div>
 
       <div class="card p-4">
+        <h3 class="font-semibold heading mb-1">งบรายหมวด (ต่อรอบ)</h3>
+        <p class="text-xs muted mb-3">ไม่ใส่ = ไม่จำกัด แอปจะเตือนเมื่อหมวดนั้นใช้ถึง 80% และเมื่อเกินงบ</p>
+        <div id="catbudget-list" class="space-y-2"></div>
+      </div>
+
+      <div class="card p-4">
+        <h3 class="font-semibold heading mb-1">ปุ่มจดด่วน</h3>
+        <p class="text-xs muted mb-3">แสดงในหน้าแรก แตะครั้งเดียวจดรายจ่ายวันนี้ได้เลย (สูงสุด 8 ปุ่ม)</p>
+        <div id="quick-settings" class="space-y-2"></div>
+      </div>
+
+      <div class="card p-4">
         <h3 class="font-semibold heading mb-3">ธีม</h3>
         <div class="flex gap-2">
           <button class="theme-opt" data-theme-opt="light" onclick="setTheme('light')"><i data-lucide="sun" class="w-5 h-5"></i>สว่าง</button>
@@ -270,6 +335,7 @@
     <div class="max-w-lg mx-auto flex">
       <button class="bottom-tab press" data-tab="home" onclick="switchTab('home')"><i data-lucide="house" class="w-5 h-5"></i>หน้าแรก</button>
       <button class="bottom-tab press" data-tab="history" onclick="switchTab('history')"><i data-lucide="chart-pie" class="w-5 h-5"></i>ประวัติ</button>
+      <button class="bottom-tab press" data-tab="goals" onclick="switchTab('goals')"><i data-lucide="piggy-bank" class="w-5 h-5"></i>ออม</button>
       <button class="bottom-tab press" data-tab="settings" onclick="switchTab('settings')"><i data-lucide="settings" class="w-5 h-5"></i>ตั้งค่า</button>
     </div>
   </nav>
@@ -288,8 +354,15 @@
         <button class="seg" data-type="income" onclick="setSheetType('income')">รายรับเพิ่ม</button>
       </div>
 
-      <label class="label" for="sheet-amount">จำนวนเงิน (บาท)</label>
+      <div class="flex items-end justify-between">
+        <label class="label" for="sheet-amount">จำนวนเงิน (บาท)</label>
+        <div id="scan-row">
+          <button type="button" id="scan-btn" onclick="$('slip-file').click()" class="press mb-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-500/10"><i data-lucide="scan-line" class="w-4 h-4"></i>สแกนสลิป</button>
+          <input id="slip-file" type="file" accept="image/*" class="hidden" onchange="scanSlip(event)" />
+        </div>
+      </div>
       <input id="sheet-amount" type="number" inputmode="decimal" min="0" step="any" class="input !text-2xl font-semibold" placeholder="0" />
+      <div id="scan-status" class="hidden"></div>
       <div id="sheet-preview" class="hidden mt-2 text-sm rounded-xl px-3 py-2"></div>
 
       <div id="sheet-cats-wrap" class="mt-4">
@@ -308,13 +381,26 @@
         </div>
       </div>
 
+      <label id="sheet-quick-wrap" class="flex items-center gap-2 mt-4 text-sm heading cursor-pointer select-none">
+        <input id="sheet-quick" type="checkbox" class="w-4 h-4 accent-emerald-600" />
+        ☆ บันทึกเป็นปุ่มจดด่วนด้วย
+      </label>
+
       <button onclick="saveSheet()" class="btn-primary press w-full mt-5 py-3">บันทึก</button>
       <button id="sheet-delete" onclick="deleteFromSheet()" class="btn-danger w-full mt-2 hidden"><i data-lucide="trash-2" class="w-4 h-4"></i>ลบรายการนี้</button>
     </div>
   </div>
 
+  <!-- หน้าต่างกลาง: ฟอร์มเป้าหมาย เติมเงิน สรุปรอบ -->
+  <div id="modal" class="fixed inset-0 z-40 hidden">
+    <div class="sheet-backdrop absolute inset-0 bg-slate-900/50" onclick="closeModal()"></div>
+    <div id="modal-body" class="sheet absolute bottom-0 inset-x-0 max-w-lg mx-auto bg-white dark:bg-slate-900 rounded-t-3xl p-5 safe-bottom max-h-[92vh] overflow-y-auto"></div>
+  </div>
+
   <div id="toasts" class="fixed top-16 inset-x-0 z-50 flex flex-col items-center gap-2 px-4 pointer-events-none"></div>
 
+  <script src="js/extras.js"></script>
+  <script src="js/slip.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

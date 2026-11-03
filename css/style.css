@@ -41,8 +41,8 @@ body {
 @keyframes fade-out { to { opacity: 0; } }
 .sheet { animation: sheet-in 0.35s var(--ease-out) both; }
 .sheet-backdrop { animation: fade-in 0.25s ease-out both; }
-#sheet.closing .sheet { animation: sheet-out 0.22s ease-in forwards; }
-#sheet.closing .sheet-backdrop { animation: fade-out 0.22s ease-in forwards; }
+#sheet.closing .sheet, #modal.closing .sheet { animation: sheet-out 0.22s ease-in forwards; }
+#sheet.closing .sheet-backdrop, #modal.closing .sheet-backdrop { animation: fade-out 0.22s ease-in forwards; }
 
 /* สลับแท็บ: ค่อย ๆ ปรากฏพร้อมเลื่อนขึ้นนิดหนึ่ง การ์ดในหน้าโผล่ตามกันทีละใบ */
 @keyframes panel-in {
@@ -116,6 +116,93 @@ body {
 .chip.active.pop { animation: pop 0.3s var(--ease-spring); }
 .bottom-tab svg { transition: transform 0.25s var(--ease-spring); }
 .bottom-tab.active svg { transform: translateY(-2px) scale(1.12); }
+
+.chip.pop, .goal-card.pop, .quick-chip.pop, #sheet-amount.pop { animation: pop 0.3s var(--ease-spring); }
+
+/* ================= กระปุกหมู ================= */
+@keyframes pig-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.pig-bob svg { animation: pig-bob 2.6s ease-in-out infinite; }
+@keyframes pig-wiggle {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(-12deg) scale(1.06); }
+  40% { transform: rotate(10deg) scale(1.06); }
+  60% { transform: rotate(-6deg); }
+  80% { transform: rotate(4deg); }
+}
+.pig-wiggle { animation: pig-wiggle 0.6s ease-in-out; }
+@keyframes drip {
+  0% { transform: translateY(-4px); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(14px); opacity: 0; }
+}
+.pig-tear { animation: drip 1.4s ease-in infinite; }
+.pig-tear-2 { animation-delay: 0.7s; }
+.pig-sweat { animation: drip 2s ease-in infinite; }
+@keyframes spark {
+  0%, 100% { opacity: 0.2; transform: scale(0.6); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+.pig-spark { transform-box: fill-box; transform-origin: center; animation: spark 1.2s ease-in-out infinite; }
+.pig-spark-2 { animation-delay: 0.6s; }
+
+/* ลูกโป่งคำพูดของหมู */
+.bubble {
+  position: relative; display: inline-block;
+  background: rgb(253 242 248); color: rgb(131 24 67);
+  padding: 6px 12px; border-radius: 14px; border-top-left-radius: 4px;
+}
+.dark .bubble { background: rgb(80 7 36 / 0.55); color: rgb(251 207 232); }
+@keyframes bubble-pop {
+  from { opacity: 0; transform: scale(0.9) translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.bubble-pop { animation: bubble-pop 0.3s var(--ease-spring); }
+
+.streak-pill {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 0.875rem;
+  padding: 2px 10px; border-radius: 999px;
+  background: rgb(255 237 213); color: rgb(154 52 18);
+}
+.dark .streak-pill { background: rgb(124 45 18 / 0.45); color: rgb(254 215 170); }
+
+/* ปุ่มจดด่วน */
+.quick-chip {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 999px; font-size: 0.875rem;
+  background: #fff; border: 1px solid rgb(226 232 240); color: rgb(30 41 59);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+.dark .quick-chip { background: rgb(15 23 42); border-color: rgb(30 41 59); color: rgb(226 232 240); }
+.quick-chip b { color: rgb(5 150 105); font-weight: 600; }
+.dark .quick-chip b { color: rgb(52 211 153); }
+.quick-chip-ghost { border-style: dashed; color: rgb(100 116 139); }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* เหรียญรางวัล */
+.badge-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  padding: 10px 4px; border-radius: 14px; min-height: 84px;
+  background: rgb(254 252 232); border: 1px solid rgb(254 240 138); color: rgb(113 63 18);
+}
+.dark .badge-tile { background: rgb(66 32 6 / 0.45); border-color: rgb(113 63 18 / 0.6); color: rgb(254 240 138); }
+.badge-tile.locked { background: transparent; border-color: rgb(226 232 240); color: rgb(148 163 184); }
+.dark .badge-tile.locked { border-color: rgb(30 41 59); color: rgb(100 116 139); }
+.badge-tile.locked span:first-child { filter: grayscale(1); opacity: 0.6; }
+
+/* ป้ายลอยสีเข้ม (ใช้บนพื้นสว่าง) */
+.float-chip-dark { right: auto; left: 50%; top: 0; margin-left: -2.5rem; background: rgb(5 150 105); font-size: 1rem; }
+
+/* พลุกระดาษ */
+@keyframes confetti-fall {
+  from { transform: translate(0, -10vh) rotate(0); opacity: 1; }
+  to { transform: translate(var(--x), 105vh) rotate(var(--r)); opacity: 0.9; }
+}
+.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
+.confetti i { position: absolute; top: 0; width: 8px; height: 12px; border-radius: 2px; animation: confetti-fall 2s cubic-bezier(0.25, 0.6, 0.4, 1) forwards; }
 
 /* ปิดอนิเมชันทั้งหมดเมื่อเครื่องตั้ง "ลดการเคลื่อนไหว" */
 @media (prefers-reduced-motion: reduce) {

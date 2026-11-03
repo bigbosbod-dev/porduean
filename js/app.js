@@ -50,8 +50,11 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 function sanitize(d) {
   const s = (d && d.settings) || {};
   const payday = Math.min(31, Math.max(1, Math.floor(Number(s.payday)) || 1));
-  return {
+  const ex = sanitizeExtras(d);
+  const out = {
     settings: {
+      quick: ex.quick,
+      catBudgets: ex.catBudgets,
       income: num(s.income),
       payday,
       saving: num(s.saving) || 0,
@@ -72,7 +75,17 @@ function sanitize(d) {
         date: t.date,
         createdAt: typeof t.createdAt === 'number' ? t.createdAt : 0,
       })),
+    goals: ex.goals,
+    deposits: ex.deposits,
+    badges: ex.badges,
+    summarized: ex.summarized,
+    startDate: ex.startDate,
   };
+  // วันที่เริ่มใช้แอป (ใช้นับสตรีค) สำหรับข้อมูลเก่าที่ยังไม่มี: ใช้วันของรายการแรก
+  if (!out.startDate && out.settings.income !== null) {
+    out.startDate = out.txns.reduce((m, t) => (t.date < m ? t.date : m), ymd(todayDate()));
+  }
+  return out;
 }
 
 let data = sanitize(getStorage(KEYS.data, {}));
@@ -90,10 +103,16 @@ const todayDate = () => { const n = new Date(); return new Date(n.getFullYear(),
 // วันเงินเข้าของเดือนนั้น (ถ้าตั้งไว้วันที่ 31 แต่เดือนนั้นมี 30 วัน ก็ใช้วันสุดท้ายของเดือน)
 const paydayIn = (y, m, payday) => new Date(y, m, Math.min(payday, daysInMonth(y, m)));
 
+// รอบที่วันนี้ (หรือวันที่ระบุ) อยู่
+function cycleOf(date) {
+  return cycleFrom(date, 0);
+}
 function cycleAt(offset = 0) {
+  return cycleFrom(todayDate(), offset);
+}
+function cycleFrom(t, offset) {
   const p = data.settings.payday;
-  const t = todayDate();
-  let y = t.getFullYear();
+  const y = t.getFullYear();
   let m = t.getMonth();
   if (t < paydayIn(y, m, p)) m -= 1;
   m += offset;
@@ -120,8 +139,13 @@ function cycleSummary(c) {
   const txns = inCycle(c);
   const extra = sum(txns.filter((t) => t.type === 'income'));
   const expenses = txns.filter((t) => t.type === 'expense');
-  const budget = (data.settings.income || 0) + extra - fixedTotal() - data.settings.saving;
-  return { txns, expenses, extra, budget, spent: sum(expenses) };
+  // เงินที่หยอดเข้าเป้าหมายจากงบของรอบนี้ (ถอนออกมาใช้ = ติดลบ = งบเพิ่ม)
+  const deps = data.deposits.filter((x) => x.fromBudget && x.date >= c.startStr && x.date <= c.endStr);
+  const toGoals = sum(deps);
+  const leftoverMoved = sum(deps.filter((x) => x.source === 'leftover'));
+  const budget = (data.settings.income || 0) + extra - fixedTotal() - data.settings.saving - toGoals;
+  // งบที่ใช้วางแผนรายวัน: ไม่นับเงินเหลือที่ย้ายออกตอนจบรอบ (ไม่อย่างนั้นวันเก่า ๆ จะดูเหมือนใช้เกิน)
+  return { txns, expenses, extra, budget, planBudget: budget + leftoverMoved, toGoals, leftoverMoved, spent: sum(expenses) };
 }
 
 function todayNumbers() {
@@ -269,6 +293,7 @@ function renderHome() {
   bar.classList.toggle('bg-amber-500', pctSpent > pctTime && pctSpent <= 100);
   bar.classList.toggle('bg-rose-500', pctSpent > 100);
   const parts = [`ใช้ไป ${Math.round(pctSpent)}% ของงบ ผ่านไป ${Math.round(pctTime)}% ของรอบ`];
+  if (n.s.toGoals > 0) parts.push(`(หยอดเข้าเป้าหมาย ${fmtMoney(n.s.toGoals)})`);
   if (fixedTotal() || data.settings.saving) parts.push(`(หักค่าใช้จ่ายประจำ ${fmtMoney(fixedTotal())} และเงินเก็บ ${fmtMoney(data.settings.saving)} แล้ว)`);
   if (n.s.budget <= 0) parts.unshift('⚠️ ค่าใช้จ่ายประจำ + เงินเก็บ มากกว่ารายรับ ลองปรับในแท็บตั้งค่า');
   $('month-note').textContent = parts.join(' ');
@@ -303,25 +328,39 @@ function renderHistory() {
   $('hist-left-label').textContent = left < 0 ? 'เกินงบ' : 'เหลือ';
   $('hist-left').textContent = fmtMoney(Math.abs(left));
   $('hist-left').className = `font-semibold mt-0.5 ${left < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`;
+  $('hist-goal-note').classList.toggle('hidden', !s.toGoals);
+  $('hist-goal-note').textContent = s.toGoals > 0
+    ? `🐷 หยอดเข้าเป้าหมายจากงบรอบนี้ ${fmtMoney(s.toGoals)} (หักออกจากงบใช้จ่ายแล้ว)`
+    : `🐷 ถอนจากเป้าหมายมาใช้ในรอบนี้ ${fmtMoney(-s.toGoals)} (เพิ่มเข้างบใช้จ่ายแล้ว)`;
+  $('hist-summary-btn').textContent = histOffset === 0 ? '📋 ดูสรุปถึงวันนี้' : '📋 ดูสรุปรอบนี้';
 
   const animate = animateHistory && !reduceMotion();
   animateHistory = false;
   renderChart(c, s, animate);
 
-  const byCat = CATS.map((cat) => ({ cat, total: sum(s.expenses.filter((t) => t.cat === cat.id)) }))
-    .filter((x) => x.total > 0)
+  // หมวดที่ตั้งงบไว้: แถบเทียบกับงบหมวด / หมวดที่ไม่ได้ตั้ง: แถบเทียบกับรายจ่ายทั้งหมด
+  const limits = data.settings.catBudgets;
+  const byCat = CATS.map((cat) => ({ cat, total: sum(s.expenses.filter((t) => t.cat === cat.id)), limit: limits[cat.id] || 0 }))
+    .filter((x) => x.total > 0 || x.limit)
     .sort((a, b) => b.total - a.total);
   $('hist-cats').innerHTML = byCat.length
-    ? byCat.map(({ cat, total }) => {
-      const pct = (total / s.spent) * 100;
+    ? byCat.map(({ cat, total, limit }) => {
+      const pct = limit ? Math.min(100, (total / limit) * 100) : (total / (s.spent || 1)) * 100;
+      const over = limit && total > limit;
+      const right = limit
+        ? `${fmtMoney(total)} <span class="muted font-normal text-xs">/ ${fmtMoney(limit)}</span>`
+        : `${fmtMoney(total)} <span class="muted font-normal text-xs">${Math.round(pct)}%</span>`;
+      const note = limit
+        ? `<div class="text-xs mt-1 ${over ? 'text-orange-600 dark:text-orange-400' : 'muted'}">${over ? `⚠️ เกินงบหมวด ${fmtMoney(total - limit)}` : `เหลือ ${fmtMoney(limit - total)}`}</div>`
+        : '';
       return `<div>
         <div class="flex justify-between text-sm mb-1">
           <span>${cat.emoji} ${cat.label}</span>
-          <span class="heading font-medium">${fmtMoney(total)} <span class="muted font-normal text-xs">${Math.round(pct)}%</span></span>
+          <span class="heading font-medium">${right}</span>
         </div>
         <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-          <div class="h-full rounded-full grow-x" data-w="${pct}" style="width:${animate ? 0 : pct}%;background:${cat.color}"></div>
-        </div>
+          <div class="h-full rounded-full grow-x" data-w="${pct}" style="width:${animate ? 0 : pct}%;background:${over ? 'var(--bar-over)' : cat.color}"></div>
+        </div>${note}
       </div>`;
     }).join('')
     : '<p class="text-sm muted text-center py-2">ยังไม่มีรายจ่ายในรอบนี้</p>';
@@ -359,7 +398,7 @@ function renderChart(c, s, animate = false) {
   const today = ymd(todayDate());
   const byDate = {};
   s.expenses.forEach((t) => { byDate[t.date] = (byDate[t.date] || 0) + t.amount; });
-  chartPlan = Math.max(0, s.budget / c.days);
+  chartPlan = Math.max(0, s.planBudget / c.days);
   chartDays = Array.from({ length: c.days }, (_, i) => {
     const d = addDays(c.start, i);
     const key = ymd(d);
@@ -485,6 +524,7 @@ function renderAll() {
   renderHome();
   renderHistory();
   renderSettings();
+  renderExtras();
   refreshIcons();
 }
 
@@ -499,10 +539,10 @@ function refreshIcons() {
 // ---------- Tabs ----------
 let currentTab = null; // null ตอนเปิดแอป เพื่อให้หน้าแรกเล่นอนิเมชันตอนเปิดด้วย
 // ปุ่ม "จดรายการ" ไม่ต้องแสดงในหน้าตั้งค่า (บังช่องกรอก) และก่อนตั้งค่ารายรับครั้งแรก
-const updateFab = () => $('fab').classList.toggle('hidden', data.settings.income === null || currentTab === 'settings');
+const updateFab = () => $('fab').classList.toggle('hidden', data.settings.income === null || currentTab === 'settings' || currentTab === 'goals');
 
 function switchTab(tab) {
-  if (!['home', 'history', 'settings'].includes(tab)) tab = 'home';
+  if (!['home', 'history', 'goals', 'settings'].includes(tab)) tab = 'home';
   const changed = tab !== currentTab;
   document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('hidden', p.id !== `tab-${tab}`));
   if (changed) replay($(`tab-${tab}`), 'panel-in');
@@ -510,6 +550,7 @@ function switchTab(tab) {
   currentTab = tab;
   updateFab();
   if (tab === 'history') { histOffset = 0; animateHistory = true; renderHistory(); }
+  if (tab === 'goals' && changed) { animateGoals = true; renderGoals(); refreshIcons(); }
   setStorage(KEYS.tab, tab);
   window.scrollTo(0, 0);
 }
@@ -520,6 +561,7 @@ function finishSetup() {
   if (!income) return toast('กรอกเงินที่ได้ต่อเดือนก่อนนะ', 'error');
   data.settings.income = income;
   data.settings.payday = Number($('setup-payday').value) || 1;
+  if (!data.startDate) data.startDate = ymd(todayDate());
   save();
   renderAll();
   toast('ตั้งค่าเรียบร้อย ลองจดรายจ่ายแรกได้เลย', 'success');
@@ -570,18 +612,22 @@ function pickCat(id) {
   renderSheetCats();
   const el = document.querySelector('#sheet-cats .chip.active');
   if (el) replay(el, 'pop');
+  updateSheetPreview();
 }
 
 function setSheetType(type) {
   sheetType = type;
   document.querySelectorAll('.seg').forEach((b) => b.classList.toggle('active', b.dataset.type === type));
   $('sheet-cats-wrap').classList.toggle('hidden', type === 'income');
+  $('sheet-quick-wrap').classList.toggle('hidden', type === 'income' || !!editingId);
   $('sheet-note').placeholder = type === 'income' ? 'เช่น ค่าจ้างพาร์ทไทม์' : 'เช่น ข้าวมันไก่';
   updateSheetPreview();
 }
 
-function openSheet(id) {
+function openSheet(id, opts = {}) {
   const t = id ? data.txns.find((x) => x.id === id) : null;
+  $('sheet-quick').checked = !!opts.quick;
+  setScanStatus('');
   editingId = t ? t.id : null;
   sheetCat = t && t.type === 'expense' ? t.cat : 'food';
   setSheetType(t ? t.type : 'expense');
@@ -591,6 +637,7 @@ function openSheet(id) {
   $('sheet-note').value = t ? t.note : '';
   $('sheet-date').value = t ? t.date : ymd(todayDate());
   $('sheet-delete').classList.toggle('hidden', !t);
+  $('scan-row').classList.toggle('hidden', !!t);
   updateSheetPreview();
   clearTimeout(sheetCloseTimer);
   $('sheet').classList.remove('hidden', 'closing');
@@ -620,29 +667,51 @@ function todayAfterSheet(amount) {
 function updateSheetPreview() {
   const el = $('sheet-preview');
   const amount = num($('sheet-amount').value);
-  const isToday = $('sheet-date').value === ymd(todayDate());
-  if (sheetType !== 'expense' || !amount || !isToday || data.settings.income === null || !data.settings.warnPct) {
+  const date = $('sheet-date').value;
+  const isToday = date === ymd(todayDate());
+  if (sheetType !== 'expense' || !amount || data.settings.income === null) {
     el.classList.add('hidden');
     return;
   }
-  const { n, after } = todayAfterSheet(amount);
-  const left = n.daily - after;
-  const state = todayState(after, n.daily);
+  const lines = [];
+  const rank = { ok: 0, near: 1, over: 2 };
+  let state = 'ok';
+  if (isToday && data.settings.warnPct) {
+    const { n, after } = todayAfterSheet(amount);
+    const left = n.daily - after;
+    const st = todayState(after, n.daily);
+    state = st;
+    lines.push(st === 'over'
+      ? `⚠️ จดแล้วจะเกินงบวันนี้ ${fmtMoney(-left)}`
+      : st === 'near'
+        ? `⚠️ จดแล้ววันนี้จะเหลือแค่ ${fmtMoney(left)}`
+        : `จดแล้ววันนี้ยังใช้ได้อีก ${fmtMoney(left)}`);
+  }
+  const c = cycleAt(0);
+  if (date >= c.startStr && date <= c.endStr) {
+    const old = editingId ? data.txns.find((t) => t.id === editingId) : null;
+    const oldSame = old && old.type === 'expense' && old.cat === sheetCat && old.date >= c.startStr && old.date <= c.endStr ? old.amount : 0;
+    const cl = catLine(sheetCat, amount - oldSame);
+    if (cl) {
+      lines.push(cl.text);
+      if (rank[cl.state] > rank[state]) state = cl.state;
+    }
+  }
+  if (!lines.length) {
+    el.classList.add('hidden');
+    return;
+  }
   const styles = {
     ok: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200',
     near: 'bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200',
     over: 'bg-orange-50 text-orange-900 dark:bg-orange-500/10 dark:text-orange-200',
   };
-  el.className = `mt-2 text-sm rounded-xl px-3 py-2 ${styles[state]}`;
-  el.textContent = state === 'over'
-    ? `⚠️ จดแล้วจะเกินงบวันนี้ ${fmtMoney(-left)}`
-    : state === 'near'
-      ? `⚠️ จดแล้ววันนี้จะเหลือแค่ ${fmtMoney(left)}`
-      : `จดแล้ววันนี้ยังใช้ได้อีก ${fmtMoney(left)}`;
+  el.className = `mt-2 text-sm rounded-xl px-3 py-2 space-y-0.5 ${styles[state]}`;
+  el.innerHTML = lines.map((l) => `<div>${escapeHtml(l)}</div>`).join('');
 }
 
 // เตือนหลังบันทึก เฉพาะตอนที่ข้ามเกณฑ์ (จะได้ไม่เตือนซ้ำทุกรายการ)
-function warnAfterSave(before, after, n) {
+function warnAfterSave(before, after, n, action = null) {
   if (!data.settings.warnPct) return false;
   const was = todayState(before, n.daily);
   const now = todayState(after, n.daily);
@@ -650,9 +719,9 @@ function warnAfterSave(before, after, n) {
   if (now === 'over') {
     const t = todayNumbers();
     const tail = t.tomorrow !== null ? ` พรุ่งนี้จะเหลือใช้ได้ ${fmtMoney(t.tomorrow)}` : '';
-    toast(`⚠️ เกินงบวันนี้ ${fmtMoney(after - n.daily)} แล้ว${tail}`, 'warn', 5000);
+    toast(`⚠️ เกินงบวันนี้ ${fmtMoney(after - n.daily)} แล้ว${tail}`, 'warn', 5000, action);
   } else {
-    toast(`⚠️ ใช้ไป ${n.daily > 0 ? Math.round((after / n.daily) * 100) : 100}% ของงบวันนี้แล้ว เหลืออีก ${fmtMoney(n.daily - after)}`, 'warn', 4500);
+    toast(`⚠️ ใช้ไป ${n.daily > 0 ? Math.round((after / n.daily) * 100) : 100}% ของงบวันนี้แล้ว เหลืออีก ${fmtMoney(n.daily - after)}`, 'warn', 4500, action);
   }
   return true;
 }
@@ -665,6 +734,10 @@ function saveSheet() {
   const counts = sheetType === 'expense' && date === ymd(todayDate()) && data.settings.income !== null;
   const check = counts ? todayAfterSheet(amount) : null;
   const fields = { type: sheetType, amount, cat: sheetType === 'income' ? 'other' : sheetCat, note: $('sheet-note').value.trim().slice(0, 60), date };
+  const c0 = cycleAt(0);
+  const catCheck = !editingId && sheetType === 'expense' && date >= c0.startStr && date <= c0.endStr
+    ? { cat: sheetCat, before: catSpent(sheetCat) } : null;
+  if (!editingId && sheetType === 'expense' && $('sheet-quick').checked) addQuickFrom(fields);
   if (editingId) {
     const t = data.txns.find((x) => x.id === editingId);
     if (t) Object.assign(t, fields);
@@ -680,6 +753,7 @@ function saveSheet() {
   if (!editingId && fields.date === ymd(todayDate())) {
     setTimeout(() => floatChip(`${sheetType === 'income' ? '+' : '−'}${fmtMoney(amount)}`), 120);
   }
+  if (catCheck) catWarn(catCheck.cat, catCheck.before, catCheck.before + amount);
   if (check && warnAfterSave(check.before, check.after, check.n)) return;
   toast(editingId ? 'แก้ไขแล้ว' : `บันทึก ${fmtMoney(amount)} แล้ว`, 'success', 1500);
 }
@@ -747,12 +821,25 @@ function clearAll() {
 }
 
 // ---------- Toast ----------
-function toast(msg, kind = 'info', ms = 2500) {
+function toast(msg, kind = 'info', ms = 2500, action = null) {
   const el = document.createElement('div');
   const color = { error: 'bg-rose-600', success: 'bg-emerald-600', warn: 'bg-orange-600' }[kind] || 'bg-slate-800';
-  el.className = `toast pointer-events-auto ${color} text-white text-sm px-4 py-2.5 rounded-xl shadow-lg max-w-sm text-center`;
-  el.textContent = msg;
-  $('toasts').appendChild(el);
+  el.className = `toast pointer-events-auto ${color} text-white text-sm px-4 py-2.5 rounded-xl shadow-lg max-w-sm text-center flex items-center gap-3`;
+  const text = document.createElement('span');
+  text.className = 'flex-1';
+  text.textContent = msg;
+  el.appendChild(text);
+  if (action) {
+    const b = document.createElement('button');
+    b.className = 'shrink-0 font-semibold underline underline-offset-2';
+    b.textContent = action.label;
+    b.onclick = () => { el.remove(); action.fn(); };
+    el.appendChild(b);
+  }
+  // แสดงพร้อมกันไม่เกิน 3 ข้อความ ข้อความเก่าสุดหายไปก่อน
+  const box = $('toasts');
+  while (box.children.length >= 3) box.firstElementChild.remove();
+  box.appendChild(el);
   setTimeout(() => {
     if (reduceMotion()) return el.remove();
     el.classList.add('leaving');
@@ -789,11 +876,12 @@ function init() {
   $('sheet-date').addEventListener('change', updateSheetPreview);
   $('sheet-amount').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveSheet(); });
   $('fixed-amount').addEventListener('keydown', (e) => { if (e.key === 'Enter') addFixed(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeSheet(); closeModal(); } });
+  setTimeout(maybeAutoSummary, 600);
 
   // ข้ามเที่ยงคืนหรือกลับมาเปิดแอปวันใหม่: คำนวณใหม่
   let lastDay = ymd(todayDate());
-  const recheck = () => { const d = ymd(todayDate()); if (d !== lastDay) { lastDay = d; renderAll(); } };
+  const recheck = () => { const d = ymd(todayDate()); if (d !== lastDay) { lastDay = d; renderAll(); maybeAutoSummary(); } };
   document.addEventListener('visibilitychange', () => { if (!document.hidden) recheck(); });
   setInterval(recheck, 60000);
   // ข้อมูลถูกแก้จากอีกแท็บ
