@@ -16,6 +16,22 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="พอเดือน" />
 
+  <!-- ถ้าโค้ดพังตอนเปิดแอป ให้แสดงสาเหตุบนจอ แทนที่จะเป็นหน้าว่าง ๆ -->
+  <script>
+    window.addEventListener('error', function (e) {
+      if (!e.message || /Script error/.test(e.message)) return;
+      var show = function () {
+        if (document.getElementById('fatal-error')) return;
+        var d = document.createElement('div');
+        d.id = 'fatal-error';
+        d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99;padding:16px;padding-top:calc(16px + env(safe-area-inset-top));background:#fee2e2;color:#991b1b;font:14px sans-serif';
+        d.textContent = 'แอปเปิดไม่สำเร็จ: ' + e.message + ' (' + String(e.filename || '').split('/').pop() + ':' + e.lineno + ') ลองรีเฟรช ถ้ายังเป็นอยู่ให้แคปหน้าจอนี้ส่งมา';
+        document.body.appendChild(d);
+      };
+      if (document.body) show(); else document.addEventListener('DOMContentLoaded', show);
+    });
+  </script>
+
   <!-- ตั้งโหมดมืดก่อนหน้าเว็บแสดงผล เพื่อไม่ให้หน้าจอกะพริบเป็นสีขาว -->
   <script>
     try {

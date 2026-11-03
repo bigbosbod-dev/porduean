@@ -47,6 +47,16 @@ const num = (v, min = 0) => {
 const isYmd = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
+// ---------- Dates ----------
+// (ต้องอยู่ก่อน sanitize เพราะ sanitize ถูกเรียกตอนโหลดไฟล์ และใช้ ymd/todayDate)
+const pad = (n) => String(n).padStart(2, '0');
+const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseYmd = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
+const dayDiff = (a, b) => Math.round((b - a) / 86400000);
+const todayDate = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
+
 function sanitize(d) {
   const s = (d && d.settings) || {};
   const payday = Math.min(31, Math.max(1, Math.floor(Number(s.payday)) || 1));
@@ -90,15 +100,6 @@ function sanitize(d) {
 
 let data = sanitize(getStorage(KEYS.data, {}));
 const save = () => setStorage(KEYS.data, data);
-
-// ---------- Dates ----------
-const pad = (n) => String(n).padStart(2, '0');
-const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const parseYmd = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
-const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
-const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
-const dayDiff = (a, b) => Math.round((b - a) / 86400000);
-const todayDate = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
 
 // วันเงินเข้าของเดือนนั้น (ถ้าตั้งไว้วันที่ 31 แต่เดือนนั้นมี 30 วัน ก็ใช้วันสุดท้ายของเดือน)
 const paydayIn = (y, m, payday) => new Date(y, m, Math.min(payday, daysInMonth(y, m)));

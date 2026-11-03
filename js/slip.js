@@ -79,11 +79,14 @@ function parseSlipAmount(text) {
   const cands = [];
   text.split(/\n+/).forEach((raw) => {
     const line = raw
-      .replace(/(?<=\d)[oO](?=[\d.,])/g, '0')
-      .replace(/(?<=\d)\s*([.,])\s*(?=\d)/g, '$1');
-    const re = /(?<![\d.,])(\d{1,3}(?:,\d{3})+|\d+)\.(\d{2})(?![\d])/g;
-    let m;
-    while ((m = re.exec(line))) {
+      .replace(/(\d)[oO](?=[\d.,])/g, '$10')
+      .replace(/(\d)\s*([.,])\s*(?=\d)/g, '$1$2');
+    // (^|ตัวที่ไม่ใช่ตัวเลข/จุด/จุลภาค) แทน lookbehind เพราะ Safari บน iOS ก่อน 16.4 ไม่รองรับ
+    const re = /(^|[^\d.,])(\d{1,3}(?:,\d{3})+|\d+)\.(\d{2})(?!\d)/g;
+    let mm;
+    while ((mm = re.exec(line))) {
+      const m = [mm[0], mm[2], mm[3]];
+      m.index = mm.index + mm[1].length;
       const value = Number(`${m[1].replace(/,/g, '')}.${m[2]}`);
       if (!(value > 0) || value > 5000000) continue;
       const looksLikeTime = !m[1].includes(',') && /^\d{1,2}$/.test(m[1]) && Number(m[1]) < 24 && Number(m[2]) < 60
